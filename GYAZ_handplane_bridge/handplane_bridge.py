@@ -68,10 +68,10 @@ def clear_transformation (obj, loc, rot, scale):
         setattr (obj, 'rotation_quaternion', [1, 0, 0, 0])
         setattr (obj, 'rotation_axis_angle', [0, 0, 0, 0])
         
-def select_only_object (object, set_object_mode):
+def select_only_object (object):
     scene = bpy.context.scene
-    if set_object_mode == True:
-        bpy.ops.object.mode_set (mode='OBJECT')
+    if bpy.context.mode != 'OBJECT':
+        bpy.ops.object.mode_set (mode='OBJECT')        
     bpy.ops.object.select_all (action='DESELECT')
     object.select = True
     scene.objects.active = object 
@@ -787,18 +787,20 @@ class Op_GYAZ_HandplaneBridge_AssignActiveObject (bpy.types.Operator):
     
     #operator function
     def execute(self, context):
-        type = self.type
-        projection_group_index = self.projection_group_index
-        model_index = self.model_index   
-        scene = bpy.context.scene
-        ao = bpy.context.active_object.name
-        
-        if type == 'HIGH_POLY':
-            scene.gyaz_hpb.projection_groups[projection_group_index].high_poly[model_index].name = ao
-        elif type == 'LOW_POLY':
-            scene.gyaz_hpb.projection_groups[projection_group_index].low_poly[model_index].name = ao
-        elif type == 'CAGE':
-            scene.gyaz_hpb.projection_groups[projection_group_index].low_poly[model_index].cage_name = ao
+        import bpy
+        if bpy.context.active_object != None:
+            type = self.type
+            projection_group_index = self.projection_group_index
+            model_index = self.model_index   
+            scene = bpy.context.scene
+            ao = bpy.context.active_object.name
+            
+            if type == 'HIGH_POLY':
+                scene.gyaz_hpb.projection_groups[projection_group_index].high_poly[model_index].name = ao
+            elif type == 'LOW_POLY':
+                scene.gyaz_hpb.projection_groups[projection_group_index].low_poly[model_index].name = ao
+            elif type == 'CAGE':
+                scene.gyaz_hpb.projection_groups[projection_group_index].low_poly[model_index].cage_name = ao
             
         return {'FINISHED'}
     
@@ -904,10 +906,7 @@ class Op_GYAZ_HandplaneBridge_ExportToHandPlane (bpy.types.Operator):
                 #type options:'HP', 'LP', 'C'
                 if scene.objects.get (obj_name) != None:
                     obj = scene.objects[obj_name]
-                    select_only_object (obj, True)
-                    #remove animation if any
-        #            if obj.get ("animation_data") != None:
-        #                obj.animation_data.action = None
+                    select_only_object (obj)
                     #clear transforms
                     if scene.gyaz_hpb.clear_transforms == True:
                         clear_transformation (obj, loc=True, rot=True, scale=True)
@@ -1253,92 +1252,129 @@ class Op_GYAZ_HandplaneBridge_ExportToHandPlane (bpy.types.Operator):
                 handplane_path = prefs.handplane_path
                 if handplane_path == '' or handplane_path == ' ':
                     report (self, 'Handplane path is not set in user preferences.', 'WARNING')
+                
                 else:
                     
-                    #get lists of objects to export
-                    hp_objs = []
-                    lp_objs = []
-                    c_objs = []
-                    projection_groups = scene.gyaz_hpb.projection_groups
-                    for group in projection_groups:
-                        for item in group.high_poly:
-                            if scene.objects.get (item.name) != None:
-                                hp_objs.append (item.name)
-                        for item in group.low_poly:
-                            if scene.objects.get (item.name) != None:
-                                lp_objs.append (item.name)
-                            if scene.objects.get (item.cage_name) != None:
-                                c_objs.append (item.cage_name)
+                    # no active projection group warning
+                    active_pgroups = list( filter( lambda pgroup: pgroup.active, scene.gyaz_hpb.projection_groups) )
+                    if len (active_pgroups) == 0:
+                        report (self, 'No active projection groups.', 'INFO')
                     
-                    
-#                    #high poly
-#                    hp_objs_with_ngons = []
-#                    for obj_name in hp_objs:
-#                        obj = scene.objects[obj_name]
-#                        faces = obj.data.polygons
-#                        ngons = list ( filter ( lambda x: len(x.vertices)>4, faces ) )
-#                        ngon_count = len (ngons)
-#                        if ngon_count > 0:               
-#                            hp_objs_with_ngons.append (obj_name)
-                    
-                    #low poly, cage
-                    quads_allowed = scene.gyaz_hpb.global_settings.suppressTriangulationWarning
-                    max_verts_per_face = 4 if quads_allowed == True else 3
-                    lp_c_objs_with_bad_polygons = []     
-                    lp_objs_with_no_uvs = []
-                    for obj_name in lp_objs + c_objs:
-                        #face check
-                        obj = scene.objects[obj_name]
-                        faces = obj.data.polygons
-                        bad_polygons = list ( filter ( lambda x: len(x.vertices)>max_verts_per_face, faces ) )
-                        bad_polygon_count = len (bad_polygons)
-                        if bad_polygon_count > 0:
-                            lp_c_objs_with_bad_polygons.append (obj_name)
-                        #uv check
-                        uv_maps = obj.data.uv_textures
-                        if len (uv_maps) < 1:
-                            if obj_name in lp_objs:
-                                lp_objs_with_no_uvs.append (obj.name)
-                            
-                    
-#                    if len (hp_objs_with_ngons) == 0 and len (lp_c_objs_with_bad_polygons) == 0 and len (lp_objs_with_no_uvs) == 0:
-                    if len (lp_c_objs_with_bad_polygons) == 0 and len (lp_objs_with_no_uvs) == 0:
-                        good_to_go = True
                     else:
-                        good_to_go = False
                         
-                    if good_to_go == False:
-                        
-                        warning_lines = []
-                        
-                        #warnings
-#                        hp_polygon_warning = 'ngons found in: '
-                        lp_no_uv_map_warning = 'no uv maps in: '
-                        
-                        if quads_allowed == False:
-                            lp_c_polygon_warning = 'quads or ngons found in: '
+                        # check for missing and unset objects:
+                        groups_with_unset_objects = []
+                        groups_with_missing_objects = []
+                        for pgroup_index, pgroup in enumerate (scene.gyaz_hpb.projection_groups):
+                            if pgroup.active == True:
+                                high_poly_names = [high_poly_item.name for high_poly_item in pgroup.high_poly]
+                                low_poly_names = [low_poly_item.name for low_poly_item in pgroup.low_poly]
+                                cage_names = [low_poly_item.cage_name for low_poly_item in pgroup.low_poly]
+                                
+                                # get unset objects (cage can be unset, high and low can't)
+                                unset_objects = []
+                                missing_objects = []
+                                for obj_name in high_poly_names + low_poly_names:
+                                    if obj_name == '':
+                                        unset_objects.append (True)
+                                    elif scene.objects.get (obj_name) == None:
+                                        missing_objects.append (obj_name)
+                                for obj_name in cage_names:
+                                    if obj_name != '':
+                                        if scene.objects.get (obj_name) == None:
+                                            missing_objects.append (obj_name)
+                                        
+                                # result
+                                if len (unset_objects) > 0:
+                                    groups_with_unset_objects.append (pgroup.name+'('+str(pgroup_index)+')')
+                                if len (missing_objects) > 0:
+                                    groups_with_missing_objects.append (pgroup.name+'('+str(pgroup_index)+')')
+                                    
+                        if len (groups_with_unset_objects) > 0 or len (groups_with_missing_objects) > 0:
+                            warning_lines = []
+                            if len (groups_with_unset_objects) > 0:
+                                warning_lines.append ("Groups with unset objects: "+list_to_visual_list(groups_with_unset_objects))
+                            if len (groups_with_missing_objects) > 0:
+                                warning_lines.append ("Groups with missing objects: "+list_to_visual_list(groups_with_missing_objects))
+                            
+                            # print warning
+                            popup (lines=warning_lines, icon='INFO', title='Projection Group Warning')
+                            for line in warning_lines:
+                                print (line)
+                    
                         else:
-                            lp_c_polygon_warning = 'ngons found in: '
-                        
-                        
-#                        if len (hp_objs_with_ngons) > 0:
-#                            line = hp_polygon_warning + list_to_visual_list (hp_objs_with_ngons)
-#                            warning_lines.append (line)
                             
-                        if len (lp_c_objs_with_bad_polygons) > 0:
-                            line = lp_c_polygon_warning + list_to_visual_list (lp_c_objs_with_bad_polygons)
-                            warning_lines.append (line)
+                            # mesh checks
+                            #get lists of objects to export
+                            hp_objs = []
+                            lp_objs = []
+                            c_objs = []
+                            projection_groups = scene.gyaz_hpb.projection_groups
+                            for group in projection_groups:
+                                for item in group.high_poly:
+                                    if scene.objects.get (item.name) != None:
+                                        hp_objs.append (item.name)
+                                for item in group.low_poly:
+                                    if scene.objects.get (item.name) != None:
+                                        lp_objs.append (item.name)
+                                    if scene.objects.get (item.cage_name) != None:
+                                        c_objs.append (item.cage_name)
+                                        
                             
-                        if len (lp_objs_with_no_uvs) > 0:
-                            line = lp_no_uv_map_warning + list_to_visual_list (lp_objs_with_no_uvs)
-                            warning_lines.append (line)
+                            #low poly, cage
+                            quads_allowed = scene.gyaz_hpb.global_settings.suppressTriangulationWarning
+                            max_verts_per_face = 4 if quads_allowed == True else 3
+                            lp_c_objs_with_bad_polygons = []     
+                            lp_objs_with_no_uvs = []
+                            for obj_name in lp_objs + c_objs:
+                                #face check
+                                obj = scene.objects[obj_name]
+                                faces = obj.data.polygons
+                                bad_polygons = list ( filter ( lambda x: len(x.vertices)>max_verts_per_face, faces ) )
+                                bad_polygon_count = len (bad_polygons)
+                                if bad_polygon_count > 0:
+                                    lp_c_objs_with_bad_polygons.append (obj_name)
+                                #uv check
+                                uv_maps = obj.data.uv_textures
+                                if len (uv_maps) < 1:
+                                    if obj_name in lp_objs:
+                                        lp_objs_with_no_uvs.append (obj.name)
+                                    
                             
-                    
-                        popup (lines=warning_lines, icon='INFO', title='Mesh Warning')
-                    
-                    else:
+                            if len (lp_c_objs_with_bad_polygons) == 0 and len (lp_objs_with_no_uvs) == 0:
+                                good_to_go = True
+                            else:
+                                good_to_go = False
+                                
+                            if good_to_go == False:
+                                
+                                warning_lines = []
+                                
+                                #warnings
+                                lp_no_uv_map_warning = 'no uv maps in: '
+                                
+                                if quads_allowed == False:
+                                    lp_c_polygon_warning = 'quads or ngons found in: '
+                                else:
+                                    lp_c_polygon_warning = 'ngons found in: '
+                                
+                                    
+                                if len (lp_c_objs_with_bad_polygons) > 0:
+                                    line = lp_c_polygon_warning + list_to_visual_list (lp_c_objs_with_bad_polygons)
+                                    warning_lines.append (line)
+                                    
+                                if len (lp_objs_with_no_uvs) > 0:
+                                    line = lp_no_uv_map_warning + list_to_visual_list (lp_objs_with_no_uvs)
+                                    warning_lines.append (line)
+                                    
+                                # print warning
+                                popup (lines=warning_lines, icon='INFO', title='Mesh Warning')
+                                for line in warning_lines:
+                                    print (line)
+                            
+                            else:
 
-                        main ()
+                                main ()
                     
                 
             
