@@ -38,6 +38,6 @@ To get a normalmap that Blender can use, choose the Unity 5.3 Preset. If you cho
 Extras:
 - Save presets for different scenarios
 - Checking for common errors:
-    if lowpoly objects have a uvmap
-    if lowpoly and cage objects are triangulated
-    if 'Suppress Triangulation Warning' is True: if lowpoly and cage objects have ngons
+    - if lowpoly objects have a uvmap
+    - if lowpoly and cage objects are triangulated
+    - if 'Suppress Triangulation Warning' is True: if lowpoly and cage objects have ngons
