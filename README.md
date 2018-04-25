@@ -1,4 +1,4 @@
-# GYAZ-Handplane-Bridge
+# GYAZ Handplane Bridge
 Blender to Handplane Baker
 
 Blenderartists thread: https://blenderartists.org/forum/showthread.php?449042-GYAZ-Handplane-Bridge
