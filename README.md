@@ -1,7 +1,7 @@
 # GYAZ Handplane Baker Bridge
 Blender to Handplane Baker
 
-Blenderartists thread: https://blenderartists.org/forum/showthread.php?449042-GYAZ-Handplane-Baker-Bridge
+Blenderartists thread: https://blenderartists.org/t/addon-gyaz-handplane-baker-bridge/1102777
 
 Baking high poly to low poly geometry in Blender produces inferior results because it has no antialiasing whatsoever. This can be helped to some extent by baking to higher than final resolution but it makes bake times go very high. The solution is to use Handplane Baker which has 16x multisampling and is just so much faster than Blender. It can organize objects into projection groups and bake all the maps you need at once. This addon makes the process convenient, letting you configure everything from inside Blender and export with a single click.
 
