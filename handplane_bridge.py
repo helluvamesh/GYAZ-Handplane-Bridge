@@ -101,10 +101,10 @@ def select_only_object (object):
     object.select = True
     scene.objects.active = object 
     
-class Op_GYAZ_Export_OpenFolderInWindowsFileExplorer (bpy.types.Operator):
+class Op_GYAZ_HPB_OpenFolderInWindowsFileExplorer (bpy.types.Operator):
        
-    bl_idname = "object.gyaz_export_open_folder_in_explorer"  
-    bl_label = "GYAZ Export: Open Folder in Explorer"
+    bl_idname = "object.gyaz_hpb_open_folder_in_explorer"  
+    bl_label = "GYAZ_Handplane Bridg: Open Folder in Explorer"
     bl_description = "Open folder in file explorer"
     
     path = StringProperty (default='', options={'SKIP_SAVE'})
@@ -1708,7 +1708,7 @@ class UI_GYAZ_HandplaneBridge (Panel):
             row = col.row (align=True)
             row.prop(scene.gyaz_hpb, 'output_folder_mode', expand=True)
             path = '//' + scene.gyaz_hpb.relative_folder_name if scene.gyaz_hpb.output_folder_mode == 'RELATIVE_FOLDER' else scene.gyaz_hpb.custom_output_folder
-            row.operator (Op_GYAZ_Export_OpenFolderInWindowsFileExplorer.bl_idname, text='', icon='VIEWZOOM').path=path
+            row.operator (Op_GYAZ_HPB_OpenFolderInWindowsFileExplorer.bl_idname, text='', icon='VIEWZOOM').path=path
             if scene.gyaz_hpb.output_folder_mode == 'RELATIVE_FOLDER':
                 lay.prop (scene.gyaz_hpb, 'relative_folder_name')
             else:
@@ -1781,6 +1781,8 @@ def register():
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_GoToHandPlane)
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_BakeWithHandPlane)
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_OpenLastOutput)
+    bpy.utils.register_class (Op_GYAZ_HPB_OpenFolderInWindowsFileExplorer)
+    
     bpy.utils.register_class (UI_GYAZ_HandplaneBridge)
    
 
@@ -1824,6 +1826,8 @@ def unregister ():
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_GoToHandPlane)
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_BakeWithHandPlane)
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_OpenLastOutput)
+    bpy.utils.unregister_class (Op_GYAZ_HPB_OpenFolderInWindowsFileExplorer)
+    
     bpy.utils.unregister_class (UI_GYAZ_HandplaneBridge)
 
   
