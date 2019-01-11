@@ -689,13 +689,13 @@ class Op_GYAZ_HandplaneBridge_RemoveProjectionGroup (bpy.types.Operator):
             
         return {'FINISHED'}
  
-    
+
 class Op_GYAZ_HandplaneBridge_SetAllProjectionGroupsActive (bpy.types.Operator):
        
     bl_idname = "object.gyaz_hpb_set_all_projection_groups_active"  
     bl_label = "GYAZ Handplane Bridge: Set All Projection Groups Active"
     bl_description = "Set all projection groups active/inactive. Only active groups are exported"
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_options = {'REGISTER', 'UNDO'}    
     
     active = BoolProperty (default=False)
     
@@ -705,6 +705,25 @@ class Op_GYAZ_HandplaneBridge_SetAllProjectionGroupsActive (bpy.types.Operator):
         
         for pgroup in scene.gyaz_hpb.projection_groups:
             pgroup.active = self.active
+            
+        return {'FINISHED'}
+
+
+class Op_GYAZ_HandplaneBridge_CollapseAllProjectionGroups (bpy.types.Operator):
+       
+    bl_idname = "object.gyaz_hpb_collapse_all_projection_groups"  
+    bl_label = "GYAZ Handplane Bridge: Collapse All Projection Groups"
+    bl_description = "Collapse/expand projection groups"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    collapse = BoolProperty (default=False)
+    
+    # operator function
+    def execute(self, context):
+        scene = bpy.context.scene
+        
+        for pgroup in scene.gyaz_hpb.projection_groups:
+            pgroup.collapsed = self.collapse
             
         return {'FINISHED'}
 
@@ -1546,8 +1565,11 @@ class Pa_GYAZ_HandplaneBridge (Panel):
             row.operator (Op_GYAZ_HandplaneBridge_AddProjectionGroup.bl_idname, text='', icon='ZOOMIN').clear=False
             row.operator (Op_GYAZ_HandplaneBridge_AddProjectionGroup.bl_idname, text='', icon='X').clear=True
             row.separator ()
-            row.operator (Op_GYAZ_HandplaneBridge_SetAllProjectionGroupsActive.bl_idname, text='All Active').active=True
-            row.operator (Op_GYAZ_HandplaneBridge_SetAllProjectionGroupsActive.bl_idname, text='All Inactive').active=False
+            row.operator (Op_GYAZ_HandplaneBridge_SetAllProjectionGroupsActive.bl_idname, text='', icon='CHECKBOX_HLT').active=True
+            row.operator (Op_GYAZ_HandplaneBridge_SetAllProjectionGroupsActive.bl_idname, text='', icon='CHECKBOX_DEHLT').active=False
+            row.separator ()
+            row.operator (Op_GYAZ_HandplaneBridge_CollapseAllProjectionGroups.bl_idname, text='', icon='TRIA_DOWN').collapse=False
+            row.operator (Op_GYAZ_HandplaneBridge_CollapseAllProjectionGroups.bl_idname, text='', icon='TRIA_UP').collapse=True
             
             lay.separator ()
                 
@@ -1784,6 +1806,7 @@ def register():
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_AddProjectionGroup)
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_RemoveProjectionGroup)
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_SetAllProjectionGroupsActive)
+    bpy.utils.register_class (Op_GYAZ_HandplaneBridge_CollapseAllProjectionGroups)
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_MoveProjectionGroup)
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_AddModelItem)
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_AssignActiveObject)
@@ -1829,6 +1852,7 @@ def unregister ():
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_AddProjectionGroup)
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_RemoveProjectionGroup)
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_SetAllProjectionGroupsActive)
+    bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_CollapseAllProjectionGroups)
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_MoveProjectionGroup)
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_AddModelItem)
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_AssignActiveObject)
