@@ -428,6 +428,7 @@ class GYAZ_HandplaneBridge_ProjectionGroupItem (PropertyGroup):
     material = IntProperty (default=0)
     isolateAO = BoolProperty (name='Isolate AO', default=False)
     autoCageOffset = FloatProperty (name='Ray Offset', default=1)
+    collapsed = BoolProperty (name='', default=False)
 
 
 def absolute_path__custom_output_folder (self, context):
@@ -664,6 +665,7 @@ class Op_GYAZ_HandplaneBridge_AddProjectionGroup (bpy.types.Operator):
         
         if clear == False:
             item = scene.gyaz_hpb.projection_groups.add ()
+            item.name += ' ' + str(len(scene.gyaz_hpb.projection_groups))
         else:
             item = scene.gyaz_hpb.projection_groups.clear ()
             
@@ -915,7 +917,7 @@ def start_handplane (self, mode):
                 obj.data = new_mesh
                 if type != 'LP':
                     uv_maps = new_mesh.uv_textures
-                    for uv_map in uv_maps:
+                    for uv_map in reversed(uv_maps):
                         uv_maps.remove (uv_map)
                 
                 # save modifier states
@@ -1522,7 +1524,7 @@ class Op_GYAZ_HandplaneBridge_OpenLastOutput (bpy.types.Operator):
         return {'FINISHED'}
 
 
-class UI_GYAZ_HandplaneBridge (Panel):
+class Pa_GYAZ_HandplaneBridge (Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = 'render'
@@ -1550,14 +1552,20 @@ class UI_GYAZ_HandplaneBridge (Panel):
             lay.separator ()
                 
             for group_index, group_item in enumerate(scene.gyaz_hpb.projection_groups):
+                
                 enabled = True if group_item.active == True else False
-                if enabled:
+                collapsed = True if group_item.collapsed else False
+                
+                if enabled and not collapsed:
                     box = lay.box ()
                     element = box
                 else:
                     element = lay
+                    
                 row = element.row (align=True)
                 row.prop (group_item, 'active', text='')
+                if collapsed and enabled:
+                    row.prop (group_item, 'collapsed', icon='TRIA_DOWN' if collapsed else 'TRIA_UP', emboss=False)
                 row.separator ()
                 row.prop (group_item, 'name', text='')
                 row.separator ()
@@ -1568,90 +1576,91 @@ class UI_GYAZ_HandplaneBridge (Panel):
                 move.up = False
                 move.index = group_index
                 row.separator ()               
-                row.operator (Op_GYAZ_HandplaneBridge_RemoveProjectionGroup.bl_idname, text='', icon='X').projection_group_index=group_index                
+                row.operator (Op_GYAZ_HandplaneBridge_RemoveProjectionGroup.bl_idname, text='', icon='X').projection_group_index=group_index
                 
-                if enabled == True:
-                    
-                    row = element.row (align=True)
-                    row.prop (group_item, 'autoCageOffset')
-                    row.prop (group_item, 'isolateAO', toggle=True)
-                    
-                    row = element.row ()
-                    
-                    operator_props = row.operator (Op_GYAZ_HandplaneBridge_AddModelItem.bl_idname, text='', icon='ZOOMIN')
-                    operator_props.type = 'HIGH_POLY'
-                    operator_props.projection_group_index = group_index
-                    operator_props.remove = False
-                    
-                    row.label ('High Poly Models:')
-                    
-                    for hp_index, hp_item in enumerate(group_item.high_poly):
-                        row = element.row (align=True)
-                        row.prop_search (hp_item, 'name', scene, "objects", icon='SOLID')
+                if not collapsed:               
+                
+                    if enabled == True:
                         
-                        operator_props = row.operator (Op_GYAZ_HandplaneBridge_AssignActiveObject.bl_idname, text='', icon='EYEDROPPER')
+                        row = element.row (align=True)
+                        row.prop (group_item, 'autoCageOffset')
+                        row.prop (group_item, 'isolateAO', toggle=True)
+                        
+                        row = element.row ()
+                        
+                        operator_props = row.operator (Op_GYAZ_HandplaneBridge_AddModelItem.bl_idname, text='', icon='ZOOMIN')
                         operator_props.type = 'HIGH_POLY'
                         operator_props.projection_group_index = group_index
-                        operator_props.model_index = hp_index
+                        operator_props.remove = False
                         
-                        row.separator ()
+                        row.label ('High Poly Models:')
                         
-                        operator_props = row.operator (Op_GYAZ_HandplaneBridge_AddModelItem.bl_idname, text='', icon='ZOOMOUT')
-                        operator_props.type = 'HIGH_POLY'
-                        operator_props.projection_group_index = group_index
-                        operator_props.remove = True
-                        operator_props.model_index = hp_index
-                        
-                        row = element.row (align=True)
-                        row.label (icon='BLANK1')
-                        row.prop (hp_item, 'isFloater', toggle=True)
-                        row.prop (hp_item, 'material')
-
-
-                    row = element.row ()
-                    
-                    operator_props = row.operator (Op_GYAZ_HandplaneBridge_AddModelItem.bl_idname, text='', icon='ZOOMIN')
-                    operator_props.type = 'LOW_POLY'
-                    operator_props.projection_group_index = group_index
-                    operator_props.remove = False
-                    
-                    row.label ('Low Poly Models:')
-                    for lp_index, lp_item in enumerate(group_item.low_poly):
-                        row = element.row (align=True)
-                        
-                        row.prop_search (lp_item, 'name', scene, "objects", icon='MESH_ICOSPHERE')
-                        
-                        operator_props = row.operator (Op_GYAZ_HandplaneBridge_AssignActiveObject.bl_idname, text='', icon='EYEDROPPER')
-                        operator_props.type = 'LOW_POLY'
-                        operator_props.projection_group_index = group_index
-                        operator_props.model_index = lp_index
-                        
-                        row.separator ()
-                        
-                        operator_props = row.operator (Op_GYAZ_HandplaneBridge_AddModelItem.bl_idname, text='', icon='ZOOMOUT')
-                        operator_props.type = 'LOW_POLY'
-                        operator_props.projection_group_index = group_index
-                        operator_props.remove = True
-                        operator_props.model_index = lp_index
-                        
-                        row = element.row (align=True)
-                        row.label (icon='BLANK1')
-                        row.prop_search (lp_item, 'cage_name', scene, "objects", icon='LATTICE_DATA')
-                        
-                        operator_props = row.operator (Op_GYAZ_HandplaneBridge_AssignActiveObject.bl_idname, text='', icon='EYEDROPPER')
-                        operator_props.type = 'CAGE'
-                        operator_props.projection_group_index = group_index
-                        operator_props.model_index = lp_index
-                        
-                        row.prop (lp_item, 'overrideCageOffset', text='', icon='LINE_DATA')             
-                        
-                        if lp_item.overrideCageOffset == True:
-                            row = element.row ()
+                        for hp_index, hp_item in enumerate(group_item.high_poly):
+                            row = element.row (align=True)
+                            row.prop_search (hp_item, 'name', scene, "objects", icon='SOLID')
+                            
+                            operator_props = row.operator (Op_GYAZ_HandplaneBridge_AssignActiveObject.bl_idname, text='', icon='EYEDROPPER')
+                            operator_props.type = 'HIGH_POLY'
+                            operator_props.projection_group_index = group_index
+                            operator_props.model_index = hp_index
+                            
+                            row.separator ()
+                            
+                            operator_props = row.operator (Op_GYAZ_HandplaneBridge_AddModelItem.bl_idname, text='', icon='ZOOMOUT')
+                            operator_props.type = 'HIGH_POLY'
+                            operator_props.projection_group_index = group_index
+                            operator_props.remove = True
+                            operator_props.model_index = hp_index
+                            
+                            row = element.row (align=True)
                             row.label (icon='BLANK1')
-                            row.prop (lp_item, 'autoCageOffset')
-                    
-                    element.separator ()
-                    element.separator ()
+                            row.prop (hp_item, 'isFloater', toggle=True)
+                            row.prop (hp_item, 'material')
+
+
+                        row = element.row ()
+                        
+                        operator_props = row.operator (Op_GYAZ_HandplaneBridge_AddModelItem.bl_idname, text='', icon='ZOOMIN')
+                        operator_props.type = 'LOW_POLY'
+                        operator_props.projection_group_index = group_index
+                        operator_props.remove = False
+                        
+                        row.label ('Low Poly Models:')
+                        for lp_index, lp_item in enumerate(group_item.low_poly):
+                            row = element.row (align=True)
+                            
+                            row.prop_search (lp_item, 'name', scene, "objects", icon='MESH_ICOSPHERE')
+                            
+                            operator_props = row.operator (Op_GYAZ_HandplaneBridge_AssignActiveObject.bl_idname, text='', icon='EYEDROPPER')
+                            operator_props.type = 'LOW_POLY'
+                            operator_props.projection_group_index = group_index
+                            operator_props.model_index = lp_index
+                            
+                            row.separator ()
+                            
+                            operator_props = row.operator (Op_GYAZ_HandplaneBridge_AddModelItem.bl_idname, text='', icon='ZOOMOUT')
+                            operator_props.type = 'LOW_POLY'
+                            operator_props.projection_group_index = group_index
+                            operator_props.remove = True
+                            operator_props.model_index = lp_index
+                            
+                            row = element.row (align=True)
+                            row.label (icon='BLANK1')
+                            row.prop_search (lp_item, 'cage_name', scene, "objects", icon='LATTICE_DATA')
+                            
+                            operator_props = row.operator (Op_GYAZ_HandplaneBridge_AssignActiveObject.bl_idname, text='', icon='EYEDROPPER')
+                            operator_props.type = 'CAGE'
+                            operator_props.projection_group_index = group_index
+                            operator_props.model_index = lp_index
+                            
+                            row.prop (lp_item, 'overrideCageOffset', text='', icon='LINE_DATA')             
+                            
+                            if lp_item.overrideCageOffset == True:
+                                row = element.row ()
+                                row.label (icon='BLANK1')
+                                row.prop (lp_item, 'autoCageOffset')
+                
+                        element.prop (group_item, 'collapsed', icon='TRIA_DOWN' if collapsed else 'TRIA_UP', emboss=False)
          
         
         elif scene.gyaz_hpb.menu == 'SETTINGS':
@@ -1783,7 +1792,7 @@ def register():
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_OpenLastOutput)
     bpy.utils.register_class (Op_GYAZ_HPB_OpenFolderInWindowsFileExplorer)
     
-    bpy.utils.register_class (UI_GYAZ_HandplaneBridge)
+    bpy.utils.register_class (Pa_GYAZ_HandplaneBridge)
    
 
 def unregister ():
@@ -1828,7 +1837,7 @@ def unregister ():
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_OpenLastOutput)
     bpy.utils.unregister_class (Op_GYAZ_HPB_OpenFolderInWindowsFileExplorer)
     
-    bpy.utils.unregister_class (UI_GYAZ_HandplaneBridge)
+    bpy.utils.unregister_class (Pa_GYAZ_HandplaneBridge)
 
   
 if __name__ == "__main__":   
