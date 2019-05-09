@@ -603,7 +603,7 @@ class Op_GYAZ_HandplaneBridge_SavePreset (bpy.types.Operator):
             setattr (prefs, 'active_preset_name', preset_name)
                 
         # save user preferences
-        bpy.context.area.type = 'USER_PREFERENCES'
+        bpy.context.area.type = 'PREFERENCES'
         bpy.ops.wm.save_userpref()
         bpy.context.area.type = 'PROPERTIES'      
 
@@ -636,7 +636,7 @@ class Op_GYAZ_HandplaneBridge_RemovePreset (bpy.types.Operator):
                 setattr (prefs, 'active_preset_name', first_preset_name)
                 
         # save user preferences
-        bpy.context.area.type = 'USER_PREFERENCES'
+        bpy.context.area.type = 'PREFERENCES'
         bpy.ops.wm.save_userpref()
         bpy.context.area.type = 'PROPERTIES'      
 
