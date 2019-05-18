@@ -91,8 +91,7 @@ def popup (lines, icon, title):
 def clear_transformation (object):
     for c in object.constraints:
         c.mute = True
-    untransformed_matrix = Matrix (([1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]))
-    object.matrix_world = untransformed_matrix
+    object.matrix_world = Matrix (([1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]))
 
     
 class Op_GYAZ_HPB_OpenFolderInWindowsFileExplorer (bpy.types.Operator):
@@ -517,7 +516,8 @@ class GYAZ_HandplaneBridge (PropertyGroup):
     custom_output_folder: StringProperty (name='', default='', subtype='DIR_PATH', update=absolute_path__custom_output_folder)
     file_name: StringProperty (name='Name', default='')
     last_output_path: StringProperty (name='Last Output', default='')
-    clear_transforms: BoolProperty (name='Clear Transforms', default=False, description="Clear objects' transformation and mute constraints")
+    clear_transforms_hp: BoolProperty (name='HP to Origo', default=False, description="Clear objects' transformation and mute constraints")
+    clear_transforms_lp: BoolProperty (name='LP to Origo', default=False, description="Clear objects' transformation and mute constraints")
     export_hp: BoolProperty (name='High Poly', default=True, description="Export high poly object(s)")
     export_lp: BoolProperty (name='Low Poly & Cage', default=True, description="Export low poly and cage object(s)")
     global_settings: PointerProperty (type=GYAZ_HandplaneBridge_GlobalSettings)
@@ -892,7 +892,9 @@ def start_handplane (self, mode):
             # type options:'HP', 'LP', 'C'
             if scene.objects.get (obj_name) != None:
                 obj = scene.objects[obj_name]
-                if scene.gyaz_hpb.clear_transforms:
+                transform_was_cleared = False
+                if (type == 'HP' and scene.gyaz_hpb.clear_transforms_hp) or ((type == 'LP' or type == 'C') and scene.gyaz_hpb.clear_transforms_lp):
+                    transform_was_cleared = True
                     # save transform info
                     save__location = obj.location[:]
                     save__rotation_euler = obj.rotation_euler[:]
@@ -944,7 +946,7 @@ def start_handplane (self, mode):
                     m.show_render = mod_states[index][1]
                     
                 # reset object transform and unmute constraints
-                if scene.gyaz_hpb.clear_transforms:
+                if transform_was_cleared:
                     for index, mute in enumerate (save__constraints_mute):
                         obj.constraints[index].mute = mute
                     obj.location = save__location
@@ -1722,7 +1724,9 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
                 lay.prop (scene.gyaz_hpb, 'custom_output_folder')
             lay.prop (scene.gyaz_hpb, 'file_name')                               
             
-            lay.prop (scene.gyaz_hpb, 'clear_transforms')
+            row = lay.row ()
+            row.prop (scene.gyaz_hpb, 'clear_transforms_hp')
+            row.prop (scene.gyaz_hpb, 'clear_transforms_lp')
             row = lay.row ()
             row.prop (scene.gyaz_hpb, 'export_hp')
             row.prop (scene.gyaz_hpb, 'export_lp')
