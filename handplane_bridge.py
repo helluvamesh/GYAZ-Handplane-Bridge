@@ -70,8 +70,15 @@ def list_to_visual_list (list):
 
 def set_folder_name (self, context):
     if context.scene.gyaz_hpb.relative_folder_name.replace (" ", "") == "":
-        context.scene.gyaz_hpb.relative_folder_name = ""     
-
+        context.scene.gyaz_hpb.relative_folder_name = "" 
+        
+        
+def baked_mesh (object):
+    object_eval = object.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    mesh_from_eval = bpy.data.meshes.new_from_object (object_eval)
+    object_eval.to_mesh_clear ()
+    return mesh_from_eval
+    
  
 import bpy, os, subprocess, bmesh
 from bpy.types import Panel, Operator, AddonPreferences, PropertyGroup
@@ -518,8 +525,8 @@ class GYAZ_HandplaneBridge (PropertyGroup):
     last_output_path: StringProperty (name='Last Output', default='')
     clear_transforms_hp: BoolProperty (name='HP to Origo', default=False, description="Clear objects' transformation and mute constraints")
     clear_transforms_lp: BoolProperty (name='LP to Origo', default=False, description="Clear objects' transformation and mute constraints")
-    export_hp: BoolProperty (name='High Poly', default=True, description="Export high poly object(s)")
-    export_lp: BoolProperty (name='Low Poly & Cage', default=True, description="Export low poly and cage object(s)")
+    export_hp: BoolProperty (name='Update HP', default=True, description="Export high poly object(s)")
+    export_lp: BoolProperty (name='Update LP', default=True, description="Export low poly and cage object(s)")
     global_settings: PointerProperty (type=GYAZ_HandplaneBridge_GlobalSettings)
     output_settings: PointerProperty (type=GYAZ_HandplaneBridge_OutputSettings)
     menu: EnumProperty (name='Menu', items=(('GROUPS', 'GROUPS', ''), ('SETTINGS', 'SETTINGS', ''), ('EXPORT', 'EXPORT', '')), default='GROUPS')
@@ -817,6 +824,10 @@ class Op_GYAZ_HandplaneBridge_AssignActiveObject (bpy.types.Operator):
 def start_handplane (self, mode):
     
     def main ():
+        
+        # if all materials are 0, material library is [white]
+        # else: material library is [black, red, green, blue]
+        all_materials_0 = True
 
         scene = bpy.context.scene
         prefs = bpy.context.preferences.addons[__package__].preferences
@@ -914,7 +925,7 @@ def start_handplane (self, mode):
                 
                 # apply modifiers and replace
                 old_mesh = obj.data
-                new_mesh = obj.to_mesh (bpy.context.depsgraph, apply_modifiers=True, calc_undeformed=False)
+                new_mesh = baked_mesh (obj)
                 obj.data = new_mesh
                 if type != 'LP':
                     uv_maps = new_mesh.uv_layers
@@ -958,6 +969,7 @@ def start_handplane (self, mode):
                 return mesh_filepath
         
         # export mesh and save filepath (for writing path into .HPB file)
+        
         pgroups = scene.gyaz_hpb.projection_groups
         for pgroup in pgroups:
             
@@ -970,6 +982,8 @@ def start_handplane (self, mode):
                         if scene.objects.get (item.name) != None:
                             path = '"' + export_obj (item.name, 'HP') + '"'
                             setattr ( item, 'model', path )
+                            if item.material != 0:
+                                all_materials_0 = False
                 
                 # low poly, cage
                 if scene.gyaz_hpb.export_lp == True:
@@ -1162,7 +1176,12 @@ def start_handplane (self, mode):
             mat_config_start = '\t\t[\n'
             def mat (color, name):
                 return '\t\t\t{\n'+'\t\t\t\tString name = "'+name+'";\n'+'\t\t\t\tColor matIDColor = '+color+';\n'+'\t\t\t\tColor channelColors\n'+'\t\t\t\t[\n'+'\t\t\t\t\t0xFF000000, \n'+'\t\t\t\t\t0xFF000000, \n'+'\t\t\t\t\t0xFF000000\n'+'\t\t\t\t]\n'+'\t\t\t}\n'
-            materials = mat ('0xFF000000', '0') + mat ('0xFFFF0000', '1') + mat ('0xFF00FF00', '2') + mat ('0xFF0000FF', '3')
+            print ('########x', all_materials_0)
+            if all_materials_0:
+                materials = mat ('0xFFFFFFFF', '0')
+            else:
+                materials = mat ('0xFF000000', '0') + mat ('0xFFFF0000', '1') + mat ('0xFF00FF00', '2') + mat ('0xFF0000FF', '3')
+            
             mat_config_end = '\t\t]\n'
             matlib_end = '\t}\n'
             
@@ -1379,7 +1398,7 @@ def start_handplane (self, mode):
                         for obj_name in lp_objs + c_objs:
                             obj = scene.objects[obj_name]
                             bm = bmesh.new ()
-                            bm.from_object (obj, bpy.context.depsgraph, deform=False,  cage=False, face_normals=False)
+                            bm.from_object (obj, bpy.context.evaluated_depsgraph_get(), deform=False,  cage=False, face_normals=False)
                             faces = bm.faces
                             bad_polygons = [face for face in faces if len(face.verts)>max_verts_per_face]
                             bad_polygon_count = len (bad_polygons)
@@ -1412,12 +1431,12 @@ def start_handplane (self, mode):
                                     hp_objs_wo_vert_color.append (obj_name)
                                 
                         
-                        if len (lp_c_objs_with_bad_polygons) == 0 and len (lp_objs_with_no_uvs) == 0:
+                        if len (lp_c_objs_with_bad_polygons) == 0 and len (lp_objs_with_no_uvs) == 0 and len (hp_objs_wo_vert_color) == 0 and len (lp_objs_with_mirrored_uvs) == 0:
                             good_to_go = True
                         else:
                             good_to_go = False
                             
-                        if good_to_go == False:
+                        if not good_to_go:
                             
                             warning_lines = []
                             
@@ -1444,7 +1463,7 @@ def start_handplane (self, mode):
                                 line = hp_no_vert_color_warning + list_to_visual_list (hp_objs_wo_vert_color)
                                 warning_lines.append (line)
                             
-                            if len (lp_objs_with_mirrored_uvs):        
+                            if len (lp_objs_with_mirrored_uvs) > 0:        
                                 warning_lines.append ( mirrored_uv_warning + list_to_visual_list (lp_objs_with_mirrored_uvs) )
                                 
                             # print warning
