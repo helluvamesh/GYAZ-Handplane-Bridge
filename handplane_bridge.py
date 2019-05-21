@@ -24,12 +24,20 @@ maps = ['normal_ts', 'normal_os', 'ao', 'ao_floaters', 'vert_color', 'mat_psd', 
 
 bake_settings_list = ['aoSampleRadius', 'aoSampleCount', 'volumetricGradientCubeFit', 'thicknessSampleRadius', 'thicknessSampleCount', 'heightMapScale', 'heightMapOffset', 'curvatureUseRaySampling', 'curvatureUseRaySampling', 'curvatureSampleRadius', 'curvatureSampleCount', 'curvaturePixelRadius', 'curvatureAutoNormalize', 'curvatureMaxAngle', 'curvatureOutputGamma', 'cavitySensitivity', 'cavityBias', 'cavityPixelRadius', 'cavityOutputGamma', 'cavityKernelType', 'textureSpaceAOPixelRadius', 'textureSpaceAOOutputGamma', 'textureSpaceAOSampleCoveragePercentage', 'tangentSpace', 'isEnabled_tangent_space_normals', 'isEnabled_object_space_normals', 'isEnabled_ambient_occlusion', 'isEnabled_ambient_occlusion_floaters', 'isEnabled_vertex_color', 'isEnabled_material_psd', 'isEnabled_material_id', 'isEnabled_curvature_map', 'isEnabled_volumetric_gradient', 'isEnabled_cavity_map', 'isEnabled_height_map', 'isEnabled_texture_space_ao', 'isEnabled_thickness']
 
-global_settings_list = ['threadCount', 'backRayOffsetScale', 'downsampleInGeneratorSpace', 'buildSmoothedNormalsForHighRes', 'suppressTriangulationWarning', 'checkForMirroredUVs']
+global_settings_list = ['threadCount', 'backRayOffsetScale', 'downsampleInGeneratorSpace', 'buildSmoothedNormalsForHighRes', 'suppressTriangulationWarning', 'checkForMirroredUVs', 'isDecal']
 
 output_settings_list = ['outputExtension', 'outputBitDepth', 'texture_format', 'outputWidth', 'outputHeight', 'outputPadding', 'outputSuperSample', 'outputDither']
 
 
-# report
+
+import bpy, os, subprocess, bmesh
+from bpy.types import Panel, Operator, AddonPreferences, PropertyGroup
+from bpy.props import *
+import bpy.utils.previews
+from mathutils import Matrix
+import numpy as np
+
+
 def report (self, text, type):
     # types: 'INFO', 'WARNING', 'ERROR'
     self.report({type}, text)
@@ -79,26 +87,20 @@ def baked_mesh (object):
     object_eval.to_mesh_clear ()
     return mesh_from_eval
     
- 
-import bpy, os, subprocess, bmesh
-from bpy.types import Panel, Operator, AddonPreferences, PropertyGroup
-from bpy.props import *
-import bpy.utils.previews
-from mathutils import Matrix
-import numpy as np
 
-
-#popup
-def popup (lines, icon, title):
-    def draw(self, context):
-        for line in lines:
-            self.layout.label(text=line)
-    bpy.context.window_manager.popup_menu(draw, title=title, icon=icon)
-    
 def clear_transformation (object):
     for c in object.constraints:
         c.mute = True
     object.matrix_world = Matrix (([1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]))
+
+
+def apply_transforms (obj, co):
+    co = co[:]
+    # get vert coords in world space
+    m = np.array (obj.matrix_world)    
+    mat = m[:3, :3].T # rotates backwards without T
+    loc = m[:3, 3]
+    return co @ mat + loc
 
     
 class Op_GYAZ_HPB_OpenFolderInWindowsFileExplorer (bpy.types.Operator):
@@ -199,6 +201,7 @@ class GYAZ_HandplaneBridge_Preferences (AddonPreferences):
         buildSmoothedNormalsForHighRes: BoolProperty ()
         suppressTriangulationWarning: BoolProperty ()
         checkForMirroredUVs: BoolProperty (default=True)
+        isDecal: BoolProperty ()
         
         #output settings
         outputExtension: StringProperty ()
@@ -446,6 +449,7 @@ class GYAZ_HandplaneBridge_GlobalSettings (PropertyGroup):
     buildSmoothedNormalsForHighRes: BoolProperty (name='Smooth High Res Normals (If None Found)', default=False)
     suppressTriangulationWarning: BoolProperty (name='Suppress Triangulation Warnings', default=False)
     checkForMirroredUVs: BoolProperty (name='Check for Mirrored UVs', default=True)
+    isDecal: BoolProperty (name='Is Decal', description='Calculate values for Heightmap.Scale, Heightmap.Offset, AmbientOcclusion.SampleRadius automaically based on the vertex depths of the first high-poly mesh compared to the first-low_poly mesh')
 
  
 class GYAZ_HandplaneBridge_OutputSettings (PropertyGroup):
@@ -527,6 +531,7 @@ class GYAZ_HandplaneBridge (PropertyGroup):
     clear_transforms_lp: BoolProperty (name='LP to Origo', default=False, description="Clear objects' transformation and mute constraints")
     export_hp: BoolProperty (name='Update HP', default=True, description="Export high poly object(s)")
     export_lp: BoolProperty (name='Update LP', default=True, description="Export low poly and cage object(s)")
+    texture_folder_popup: BoolProperty (name='Open Texture Folder', default=True, description="Open the folder with the baked textures when done")
     global_settings: PointerProperty (type=GYAZ_HandplaneBridge_GlobalSettings)
     output_settings: PointerProperty (type=GYAZ_HandplaneBridge_OutputSettings)
     menu: EnumProperty (name='Menu', items=(('GROUPS', 'GROUPS', ''), ('SETTINGS', 'SETTINGS', ''), ('EXPORT', 'EXPORT', '')), default='GROUPS')
@@ -804,19 +809,24 @@ class Op_GYAZ_HandplaneBridge_AssignActiveObject (bpy.types.Operator):
     # operator function
     def execute(self, context):
         import bpy
-        if bpy.context.active_object != None:
+        if bpy.context.active_object is not None:
             type = self.type
             projection_group_index = self.projection_group_index
             model_index = self.model_index   
             scene = bpy.context.scene
-            ao = bpy.context.active_object.name
+            ao = bpy.context.active_object
             
-            if type == 'HIGH_POLY':
-                scene.gyaz_hpb.projection_groups[projection_group_index].high_poly[model_index].name = ao
-            elif type == 'LOW_POLY':
-                scene.gyaz_hpb.projection_groups[projection_group_index].low_poly[model_index].name = ao
-            elif type == 'CAGE':
-                scene.gyaz_hpb.projection_groups[projection_group_index].low_poly[model_index].cage_name = ao
+            if ao.type in ['MESH', 'CURVE', 'META', 'SURFACE', 'FONT']:
+            
+                if type == 'HIGH_POLY':
+                    scene.gyaz_hpb.projection_groups[projection_group_index].high_poly[model_index].name = ao.name
+                elif type == 'LOW_POLY':
+                    scene.gyaz_hpb.projection_groups[projection_group_index].low_poly[model_index].name = ao.name
+                elif type == 'CAGE':
+                    scene.gyaz_hpb.projection_groups[projection_group_index].low_poly[model_index].cage_name = ao.name
+            
+            else:
+                report (self, 'Object cannot be converted to mesh.', 'WARNING')
             
         return {'FINISHED'}
     
@@ -896,7 +906,65 @@ def start_handplane (self, mode):
         export_folder = root_folder + '\meshes'
         export_folder = os.path.abspath ( bpy.path.abspath (export_folder) )
         # create export folder
-        os.makedirs(export_folder, exist_ok=True) 
+        os.makedirs(export_folder, exist_ok=True)
+        
+        
+        #_______________________________________________________________
+        
+        # Is Decal - modify some settings based on vertex depths
+        
+        if scene.gyaz_hpb.global_settings.isDecal:
+        
+            pgroups = scene.gyaz_hpb.projection_groups
+            
+            first_pgroup = None
+            for pgroup in pgroups:
+                if pgroup.active:
+                    first_pgroup = pgroup
+                    break
+            
+            if first_pgroup is not None:
+                first_hp = None
+                for item in first_pgroup.high_poly:
+                    if item.name in scene.objects:
+                        first_hp = scene.objects[item.name]
+                        break
+                    
+                if first_hp is not None:
+                    first_lp = None
+                    for item in first_pgroup.low_poly:
+                        if item.name in scene.objects:
+                            first_lp = scene.objects[item.name]
+                            break
+                        
+                    if first_lp is not None:
+            
+                        hp = first_hp
+                        lp = first_lp
+                        
+                        lp_vert_zpos = apply_transforms(lp, lp.data.vertices[0].co)[2]
+
+                        # mesh with modifiers applied
+                        baked_hp_mesh = baked_mesh(hp)
+
+                        vert_depths = [apply_transforms(hp, v.co)[2] for v in baked_hp_mesh.vertices]
+                        deepest_vert_zpos = min(vert_depths)
+                        heighest_vert_zpos = max(vert_depths)
+
+                        lower_height = lp_vert_zpos - deepest_vert_zpos
+                        upper_height = heighest_vert_zpos - lp_vert_zpos
+
+                        interval = max(lower_height, upper_height)
+
+                        #  blender: 1 = 1m, handplane: 1 = 1cm
+                        interval *= 100
+                        
+                        scene.gyaz_hpb.bake_settings.heightMapOffset = interval
+                        scene.gyaz_hpb.bake_settings.heightMapScale = interval * 2
+                        scene.gyaz_hpb.bake_settings.aoSampleRadius = interval
+        
+        #_______________________________________________________________
+        
         
 		# export func               
         def export_obj (obj_name, type):
@@ -1278,8 +1346,9 @@ def start_handplane (self, mode):
             handplane_cmd = os.path.abspath ( bpy.path.abspath (handplane_path+"handplaneCmd.exe") )
             subprocess.run (handplane_cmd + ' /project ' + project_file_path)
             # open explorer at baked textures
-            textures_folder = os.path.abspath ( bpy.path.abspath (root_folder + '/textures') )
-            subprocess.Popen('explorer ' + textures_folder)
+            if scene.gyaz_hpb.texture_folder_popup:
+                textures_folder = os.path.abspath ( bpy.path.abspath (root_folder + '/textures') )
+                subprocess.Popen('explorer ' + textures_folder)
                         
     ##############################################
     # SAFETY CHECKS
@@ -1727,6 +1796,7 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
             col.prop (scene.gyaz_hpb.global_settings, 'buildSmoothedNormalsForHighRes')    
             col.prop (scene.gyaz_hpb.global_settings, 'suppressTriangulationWarning')    
             col.prop (scene.gyaz_hpb.global_settings, 'checkForMirroredUVs')    
+            col.prop (scene.gyaz_hpb.global_settings, 'isDecal')    
 
                        
         elif scene.gyaz_hpb.menu == 'EXPORT':
@@ -1749,6 +1819,7 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
             row = lay.row ()
             row.prop (scene.gyaz_hpb, 'export_hp')
             row.prop (scene.gyaz_hpb, 'export_lp')
+            lay.prop (scene.gyaz_hpb, 'texture_folder_popup')
             row = lay.row (align=True)
             col = row.column (align=True)
             col.scale_y = 2
