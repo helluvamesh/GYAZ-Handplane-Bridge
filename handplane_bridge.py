@@ -50,21 +50,39 @@ def popup (lines, icon, title):
     bpy.context.window_manager.popup_menu(draw, title=title, icon=icon)
 
 
-# detect mirrored uvs
+def deselect_all_uvs (bm, uv_index):
+    uv_layer = bm.loops.layers.uv[uv_index]
+    for face in bm.faces:
+        for loop in face.loops:
+            loop[uv_layer].select = False
+
+
 def detect_mirrored_uvs (bm, uv_index):
     uv_layer = bm.loops.layers.uv[uv_index]
     mirrored_face_count = 0
     for face in bm.faces:
         uvs = [tuple(loop[uv_layer].uv) for loop in face.loops]
         x_coords, y_coords = zip (*uvs)
-        result = 0.5 * np.array (np.dot(x_coords, np.roll(y_coords, 1)) - np.dot(y_coords, np.roll(x_coords, 1)))
-        if result > 0:
+        if 0.5 * np.array (np.dot(x_coords, np.roll(y_coords, 1)) - np.dot(y_coords, np.roll(x_coords, 1))) > 0:
             mirrored_face_count += 1
-            break
+            break      
     if mirrored_face_count > 0:
         return True
     else:
         return False
+    
+
+def select_mirrored_uvs (bm, uv_index):
+    uv_layer = bm.loops.layers.uv[uv_index]
+    mirrored_face_count = 0
+    for face in bm.faces:
+        uvs = [tuple(loop[uv_layer].uv) for loop in face.loops]
+        x_coords, y_coords = zip (*uvs)
+        if 0.5 * np.array (np.dot(x_coords, np.roll(y_coords, 1)) - np.dot(y_coords, np.roll(x_coords, 1))) > 0:
+            mirrored_face_count += 1
+            uvs_ = [loop[uv_layer] for loop in face.loops]
+            for uv in uvs_:
+                uv.select = True  
     
     
 def list_to_visual_list (list):
@@ -1483,13 +1501,17 @@ def start_handplane (self, mode):
                                 if obj_name in lp_objs:
                                     lp_objs_with_no_uvs.append (obj.name)  
                             else:
+                                # select mirored uvs
                                 bm = bmesh.new ()
-                                bm.from_mesh (obj.data)
-                                faces = bm.faces                    
+                                bm.from_mesh (obj.data)                               
                                 has_mirrored_uvs = detect_mirrored_uvs (bm, uv_index=0)
                                 if has_mirrored_uvs:
-                                    lp_objs_with_mirrored_uvs.append (obj.name)               
-                                bm.free ()
+                                    deselect_all_uvs (bm, uv_index=0)
+                                    select_mirrored_uvs (bm, uv_index=0)
+                                    lp_objs_with_mirrored_uvs.append (obj.name)
+                                    bm.to_mesh (obj.data)               
+                                else:    
+                                    bm.free ()
                                     
                         # high poly
                         hp_objs_wo_vert_color = []
