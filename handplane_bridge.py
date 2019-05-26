@@ -1262,7 +1262,6 @@ def start_handplane (self, mode):
             mat_config_start = '\t\t[\n'
             def mat (color, name):
                 return '\t\t\t{\n'+'\t\t\t\tString name = "'+name+'";\n'+'\t\t\t\tColor matIDColor = '+color+';\n'+'\t\t\t\tColor channelColors\n'+'\t\t\t\t[\n'+'\t\t\t\t\t0xFF000000, \n'+'\t\t\t\t\t0xFF000000, \n'+'\t\t\t\t\t0xFF000000\n'+'\t\t\t\t]\n'+'\t\t\t}\n'
-            print ('########x', all_materials_0)
             if all_materials_0:
                 materials = mat ('0xFFFFFFFF', '0')
             else:
