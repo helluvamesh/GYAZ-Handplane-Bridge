@@ -1409,36 +1409,35 @@ def start_handplane (self, mode):
                     groups_with_no_low_poly_item = []
                     groups_with_unset_objects = []
                     groups_with_missing_objects = []
-                    for pgroup_index, pgroup in enumerate (scene.gyaz_hpb.projection_groups):
-                        if pgroup.active == True:
-                            high_poly_names = [high_poly_item.name for high_poly_item in pgroup.high_poly]
-                            low_poly_names = [low_poly_item.name for low_poly_item in pgroup.low_poly]
-                            cage_names = [low_poly_item.cage_name for low_poly_item in pgroup.low_poly]
-                            
-                            # get unset objects (cage can be unset, high and low can't)
-                            unset_objects = []
-                            missing_objects = []
-                            for obj_name in high_poly_names + low_poly_names:
-                                if obj_name == '':
-                                    unset_objects.append (True)
-                                elif scene.objects.get (obj_name) == None:
+                    for pgroup_index, pgroup in enumerate (active_pgroups):
+                        high_poly_names = [high_poly_item.name for high_poly_item in pgroup.high_poly]
+                        low_poly_names = [low_poly_item.name for low_poly_item in pgroup.low_poly]
+                        cage_names = [low_poly_item.cage_name for low_poly_item in pgroup.low_poly]
+                        
+                        # get unset objects (cage can be unset, high and low can't)
+                        unset_objects = []
+                        missing_objects = []
+                        for obj_name in high_poly_names + low_poly_names:
+                            if obj_name == '':
+                                unset_objects.append (True)
+                            elif scene.objects.get (obj_name) == None:
+                                missing_objects.append (obj_name)
+                        for obj_name in cage_names:
+                            if obj_name != '':
+                                if scene.objects.get (obj_name) == None:
                                     missing_objects.append (obj_name)
-                            for obj_name in cage_names:
-                                if obj_name != '':
-                                    if scene.objects.get (obj_name) == None:
-                                        missing_objects.append (obj_name)
-                                    
-                            # result
-                            group_info = pgroup.name+'('+str(pgroup_index)+')'
-                            if len (pgroup.high_poly) == 0:
-                                groups_with_no_high_poly_item.append (group_info)
-                            if len (pgroup.low_poly) == 0:
-                                groups_with_no_low_poly_item.append (group_info)
-                            if len (unset_objects) > 0:
-                                groups_with_unset_objects.append (group_info)
-                            if len (missing_objects) > 0:
-                                groups_with_missing_objects.append (group_info)
                                 
+                        # result
+                        group_info = pgroup.name+'('+str(pgroup_index)+')'
+                        if len (pgroup.high_poly) == 0:
+                            groups_with_no_high_poly_item.append (group_info)
+                        if len (pgroup.low_poly) == 0:
+                            groups_with_no_low_poly_item.append (group_info)
+                        if len (unset_objects) > 0:
+                            groups_with_unset_objects.append (group_info)
+                        if len (missing_objects) > 0:
+                            groups_with_missing_objects.append (group_info)
+                            
                     if len(groups_with_no_high_poly_item)>0 or len(groups_with_no_low_poly_item)>0 or len(groups_with_unset_objects)>0 or len(groups_with_missing_objects)>0:
                         warning_lines = []
                         if len (groups_with_no_high_poly_item) > 0:
@@ -1462,8 +1461,7 @@ def start_handplane (self, mode):
                         hp_objs = []
                         lp_objs = []
                         c_objs = []
-                        projection_groups = scene.gyaz_hpb.projection_groups
-                        for group in projection_groups:
+                        for group in active_pgroups:
                             for item in group.high_poly:
                                 if scene.objects.get (item.name) != None:
                                     hp_objs.append (item.name)
