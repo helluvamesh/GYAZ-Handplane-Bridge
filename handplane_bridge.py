@@ -1642,8 +1642,9 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
         lay = self.layout
         lay.row ().prop (scene.gyaz_hpb, 'menu', expand=True)
         
+        lay.separator ()
+        
         if scene.gyaz_hpb.menu == 'GROUPS':
-            lay.label (text='Projection Groups:')
             row = lay.row (align=True)
             row.scale_x = 2
             row.separator ()
@@ -1656,20 +1657,22 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
             row.operator (Op_GYAZ_HandplaneBridge_CollapseAllProjectionGroups.bl_idname, text='', icon='TRIA_DOWN').collapse=False
             row.operator (Op_GYAZ_HandplaneBridge_CollapseAllProjectionGroups.bl_idname, text='', icon='TRIA_UP').collapse=True
             
-            lay.separator ()
-                
+            col = lay.column ()
+            
             for group_index, group_item in enumerate(scene.gyaz_hpb.projection_groups):
                 
                 enabled = True if group_item.active == True else False
                 collapsed = True if group_item.collapsed else False
                 
                 if enabled and not collapsed:
-                    box = lay.box ()
+                    box = col.box ()
                     element = box
                 else:
-                    element = lay
-                    
-                row = element.row (align=True)
+                    element = col
+                
+                col = element.column ()
+                
+                row = col.row (align=True)
                 row.prop (group_item, 'active', text='')
                 if collapsed and enabled:
                     row.prop (group_item, 'collapsed', icon='TRIA_DOWN' if collapsed else 'TRIA_UP', emboss=False)
@@ -1689,21 +1692,23 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
                 
                     if enabled == True:
                         
-                        row = element.row (align=True)
+                        col.separator ()
+                        
+                        row = col.row (align=True)
                         row.prop (group_item, 'autoCageOffset')
                         row.prop (group_item, 'isolateAO', toggle=True)
-                        
-                        row = element.row ()
-                        
+                                                
+                        col.separator ()
+                        row = col.row ()
                         operator_props = row.operator (Op_GYAZ_HandplaneBridge_AddModelItem.bl_idname, text='', icon='ADD')
                         operator_props.type = 'HIGH_POLY'
                         operator_props.projection_group_index = group_index
                         operator_props.remove = False
-                        
                         row.label (text='High Poly Models:')
+                        col.separator ()
                         
                         for hp_index, hp_item in enumerate(group_item.high_poly):
-                            row = element.row (align=True)
+                            row = col.row (align=True)
                             row.prop_search (hp_item, 'name', scene, "objects", icon='SHADING_SOLID')
                             
                             operator_props = row.operator (Op_GYAZ_HandplaneBridge_AssignActiveObject.bl_idname, text='', icon='EYEDROPPER')
@@ -1719,22 +1724,23 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
                             operator_props.remove = True
                             operator_props.model_index = hp_index
                             
-                            row = element.row (align=True)
+                            row = col.row (align=True)
                             row.label (icon='BLANK1')
                             row.prop (hp_item, 'isFloater', toggle=True)
                             row.prop (hp_item, 'material')
 
-
-                        row = element.row ()
                         
+                        col.separator ()
+                        row = col.row ()
                         operator_props = row.operator (Op_GYAZ_HandplaneBridge_AddModelItem.bl_idname, text='', icon='ADD')
                         operator_props.type = 'LOW_POLY'
                         operator_props.projection_group_index = group_index
                         operator_props.remove = False
-                        
                         row.label (text='Low Poly Models:')
+                        col.separator ()
+                        
                         for lp_index, lp_item in enumerate(group_item.low_poly):
-                            row = element.row (align=True)
+                            row = col.row (align=True)
                             
                             row.prop_search (lp_item, 'name', scene, "objects", icon='MESH_ICOSPHERE')
                             
@@ -1751,7 +1757,7 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
                             operator_props.remove = True
                             operator_props.model_index = lp_index
                             
-                            row = element.row (align=True)
+                            row = col.row (align=True)
                             row.label (icon='BLANK1')
                             row.prop_search (lp_item, 'cage_name', scene, "objects", icon='LATTICE_DATA')
                             
@@ -1763,11 +1769,11 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
                             row.prop (lp_item, 'overrideCageOffset', text='', icon='LINE_DATA')             
                             
                             if lp_item.overrideCageOffset == True:
-                                row = element.row ()
+                                row = col.row ()
                                 row.label (icon='BLANK1')
                                 row.prop (lp_item, 'autoCageOffset')
                 
-                        element.prop (group_item, 'collapsed', icon='TRIA_DOWN' if collapsed else 'TRIA_UP', emboss=False)
+                        col.prop (group_item, 'collapsed', icon='TRIA_DOWN' if collapsed else 'TRIA_UP', emboss=False)
          
         
         elif scene.gyaz_hpb.menu == 'SETTINGS':
