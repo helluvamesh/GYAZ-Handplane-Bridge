@@ -1657,12 +1657,12 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
             row.operator (Op_GYAZ_HandplaneBridge_CollapseAllProjectionGroups.bl_idname, text='', icon='TRIA_DOWN').collapse=False
             row.operator (Op_GYAZ_HandplaneBridge_CollapseAllProjectionGroups.bl_idname, text='', icon='TRIA_UP').collapse=True
             
-            col = lay.column ()
-            
             for group_index, group_item in enumerate(scene.gyaz_hpb.projection_groups):
                 
-                enabled = True if group_item.active == True else False
-                collapsed = True if group_item.collapsed else False
+                col = lay.column ()
+                    
+                enabled = group_item.active
+                collapsed = group_item.collapsed
                 
                 if enabled and not collapsed:
                     box = col.box ()
@@ -1689,8 +1689,8 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
                 row.operator (Op_GYAZ_HandplaneBridge_RemoveProjectionGroup.bl_idname, text='', icon='X').projection_group_index=group_index
                 
                 if not collapsed:               
-                
-                    if enabled == True:
+                    
+                    if enabled:
                         
                         col.separator ()
                         
@@ -1772,7 +1772,7 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
                                 row = col.row ()
                                 row.label (icon='BLANK1')
                                 row.prop (lp_item, 'autoCageOffset')
-                
+                                
                         col.prop (group_item, 'collapsed', icon='TRIA_DOWN' if collapsed else 'TRIA_UP', emboss=False)
          
         
