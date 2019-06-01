@@ -1658,9 +1658,9 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
             
             col.operator (Op_GYAZ_HandplaneBridge_AddProjectionGroup.bl_idname, text='', icon='ADD').clear=False
             col.operator (Op_GYAZ_HandplaneBridge_RemoveProjectionGroup.bl_idname, text='', icon='REMOVE').projection_group_index=group_index
-            col.separator ()
-            col.menu ('RENDER_MT_GYAZ_HPB_ProjectionGroup', text='', icon='DOWNARROW_HLT')
             if len (scene.gyaz_hpb.projection_groups) > 1:
+                col.separator ()
+                col.menu ('RENDER_MT_GYAZ_HPB_ProjectionGroup', text='', icon='DOWNARROW_HLT')
                 col.separator ()
                 move = col.operator (Op_GYAZ_HandplaneBridge_MoveProjectionGroup.bl_idname, text='', icon='TRIA_UP')
                 move.up = True
@@ -1688,7 +1688,7 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
                 operator_props.type = 'HIGH_POLY'
                 operator_props.projection_group_index = group_index
                 operator_props.remove = False
-                row.label (text='High Poly Models:')
+                row.label (text='High Poly:')
                 col.separator ()
                 
                 for hp_index, hp_item in enumerate(group_item.high_poly):
@@ -1720,7 +1720,7 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
                 operator_props.type = 'LOW_POLY'
                 operator_props.projection_group_index = group_index
                 operator_props.remove = False
-                row.label (text='Low Poly Models:')
+                row.label (text='Low Poly:')
                 col.separator ()
                 
                 for lp_index, lp_item in enumerate(group_item.low_poly):
