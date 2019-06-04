@@ -173,28 +173,28 @@ class GYAZ_HandplaneBridge_Preferences (AddonPreferences):
         name: StringProperty ()
         
         #bake settings
-        aoSampleRadius: FloatProperty ()
-        aoSampleCount: IntProperty ()
+        aoSampleRadius: FloatProperty (min=0.0)
+        aoSampleCount: IntProperty (min=0)
         volumetricGradientCubeFit: BoolProperty ()
-        thicknessSampleRadius: FloatProperty ()
-        thicknessSampleCount: IntProperty ()
-        heightMapScale: FloatProperty ()
-        heightMapOffset: FloatProperty ()
+        thicknessSampleRadius: FloatProperty (min=0.0)
+        thicknessSampleCount: IntProperty (min=0)
+        heightMapScale: FloatProperty (min=0.0)
+        heightMapOffset: FloatProperty (min=0.0)
         curvatureUseRaySampling: BoolProperty ()
-        curvatureSampleRadius: FloatProperty ()
-        curvatureSampleCount: IntProperty ()
-        curvaturePixelRadius: IntProperty ()
+        curvatureSampleRadius: FloatProperty (min=0.0)
+        curvatureSampleCount: IntProperty (min=0)
+        curvaturePixelRadius: IntProperty (min=0)
         curvatureAutoNormalize: BoolProperty ()
-        curvatureMaxAngle: FloatProperty ()
-        curvatureOutputGamma: FloatProperty ()
-        cavitySensitivity: FloatProperty ()
-        cavityBias: FloatProperty ()
-        cavityPixelRadius: IntProperty ()
-        cavityOutputGamma: FloatProperty ()
+        curvatureMaxAngle: FloatProperty (min=0.0)
+        curvatureOutputGamma: FloatProperty (min=0.0)
+        cavitySensitivity: FloatProperty (min=0.0)
+        cavityBias: FloatProperty (min=0.0)
+        cavityPixelRadius: IntProperty (min=0)
+        cavityOutputGamma: FloatProperty (min=0.0)
         cavityKernelType: StringProperty ()
-        textureSpaceAOPixelRadius: IntProperty ()
-        textureSpaceAOOutputGamma: FloatProperty ()
-        textureSpaceAOSampleCoveragePercentage: FloatProperty ()
+        textureSpaceAOPixelRadius: IntProperty (min=0)
+        textureSpaceAOOutputGamma: FloatProperty (min=0.0)
+        textureSpaceAOSampleCoveragePercentage: FloatProperty (min=0.0)
         
         tangentSpace: StringProperty ()
         
@@ -213,8 +213,8 @@ class GYAZ_HandplaneBridge_Preferences (AddonPreferences):
         isEnabled_thickness: BoolProperty ()
         
         #global settings
-        threadCount: IntProperty ()
-        backRayOffsetScale: FloatProperty ()
+        threadCount: IntProperty (min=0)
+        backRayOffsetScale: FloatProperty (min=0.0)
         downsampleInGeneratorSpace: BoolProperty ()
         buildSmoothedNormalsForHighRes: BoolProperty ()
         suppressTriangulationWarning: BoolProperty ()
@@ -223,11 +223,11 @@ class GYAZ_HandplaneBridge_Preferences (AddonPreferences):
         
         #output settings
         outputExtension: StringProperty ()
-        outputBitDepth: IntProperty ()
+        outputBitDepth: IntProperty (min=0)
         texture_format: StringProperty ()
         outputWidth: StringProperty ()
         outputHeight: StringProperty ()
-        outputPadding: IntProperty ()
+        outputPadding: IntProperty (min=0)
         outputSuperSample: StringProperty ()
         outputDither: BoolProperty ()
         
@@ -436,7 +436,7 @@ class GYAZ_HandplaneBridge_LowPolyItem (PropertyGroup):
     model: StringProperty (name='', default='')
     cageModel: StringProperty (name='', default='')
     overrideCageOffset: BoolProperty (name='Override Cage Offset', default=False, description='Override Ray Offset')
-    autoCageOffset: FloatProperty (name='Cage Offset', default=1)
+    autoCageOffset: FloatProperty (name='Cage Offset', default=1.0, min=0.0)
     name: StringProperty (name='', default='', description='Low poly mesh')
     cage_name: StringProperty (name='', default='', description='Cage mesh')
     
@@ -446,9 +446,9 @@ class GYAZ_HandplaneBridge_ProjectionGroupItem (PropertyGroup):
     active: BoolProperty (default=True, description='Only active groups are exported')
     high_poly: CollectionProperty (type=GYAZ_HandplaneBridge_HighPolyItem)
     low_poly: CollectionProperty (type=GYAZ_HandplaneBridge_LowPolyItem)
-    material: IntProperty (default=0)
+    material: IntProperty (default=0, min=0)
     isolateAO: BoolProperty (name='Isolate AO', default=False)
-    autoCageOffset: FloatProperty (name='Ray Offset', default=1)
+    autoCageOffset: FloatProperty (name='Ray Offset', default=1, min=0.0)
 
 
 def absolute_path__custom_output_folder (self, context):
@@ -461,7 +461,7 @@ def absolute_path__custom_output_folder (self, context):
 
 class GYAZ_HandplaneBridge_GlobalSettings (PropertyGroup):
     threadCount: IntProperty (name='Baker Thread Count', default=0, min=0)
-    backRayOffsetScale: FloatProperty (name='Back Ray Offset Scale', default=5.0)
+    backRayOffsetScale: FloatProperty (name='Back Ray Offset Scale', default=5.0, min=0.0)
     downsampleInGeneratorSpace: BoolProperty (name='Generator Space Downsampling', default=True)
     buildSmoothedNormalsForHighRes: BoolProperty (name='Smooth High Res Normals (If None Found)', default=False)
     suppressTriangulationWarning: BoolProperty (name='Suppress Triangulation Warnings', default=False)
@@ -473,7 +473,7 @@ class GYAZ_HandplaneBridge_OutputSettings (PropertyGroup):
     outputFolder: StringProperty (name='Folder', default='')
     outputFilename: StringProperty (name='Name', default='')
     outputExtension: StringProperty (default='TGA')
-    outputBitDepth: IntProperty (default=8)
+    outputBitDepth: IntProperty (default=8, min=0)
     texture_format: EnumProperty (name='Format', items=(('TIF_8', 'TIF 8', ''), ('TIF_16', 'TIF 16', ''), ('PNG_8', 'PNG 8', ''), ('PNG_16', 'PNG 16', ''), ('PSD_8', 'PSD 8', ''), ('PSD_16', 'PSD 16', ''), ('TGA_8', 'TGA 8', '')), default='PNG_8')
     outputWidth: EnumProperty (name='Width', items=(('256', '256', ''), ('512', '512', ''), ('1024', '1024', ''), ('2048', '2048', ''), ('4096', '4096', ''), ('8192', '8192', ''), ('16384', '16384', '')), default='2048')
     outputHeight: EnumProperty (name='Height', items=(('256', '256', ''), ('512', '512', ''), ('1024', '1024', ''), ('2048', '2048', ''), ('4096', '4096', ''), ('8192', '8192', ''), ('16384', '16384', '')), default='2048')
@@ -482,28 +482,28 @@ class GYAZ_HandplaneBridge_OutputSettings (PropertyGroup):
     outputDither: BoolProperty (name='Dither', default=True)
 
 class GYAZ_HandplaneBridge_BakeSettings (PropertyGroup):
-    aoSampleRadius: FloatProperty (name='Sample Radius', default=1.0)
+    aoSampleRadius: FloatProperty (name='Sample Radius', default=1.0, min=0.0)
     aoSampleCount: IntProperty (name='Sample Count', default=20, min=0)
     volumetricGradientCubeFit: BoolProperty (name='Cube Fit', default=False)
-    thicknessSampleRadius: FloatProperty (name='Sample Radius', default=1.0)
+    thicknessSampleRadius: FloatProperty (name='Sample Radius', default=1.0, min=0.0)
     thicknessSampleCount: IntProperty (name='Sample Count', default=20, min=0)
-    heightMapScale: FloatProperty (name='Scale', default=1.0)
+    heightMapScale: FloatProperty (name='Scale', default=1.0, min=0.0)
     heightMapOffset: FloatProperty (name='Offset', default=0.0)
     curvatureUseRaySampling: BoolProperty (name='Use Ray Sampling', default=False)
-    curvatureSampleRadius: FloatProperty (name='Sample Radius', default=0.05)
+    curvatureSampleRadius: FloatProperty (name='Sample Radius', default=0.05, min=0.0)
     curvatureSampleCount: IntProperty (name='Sample Count', default=20, min=0)
     curvaturePixelRadius: IntProperty (name='Pixel Sample Radius', default=4, min=0)
     curvatureAutoNormalize: BoolProperty (name='Auto Normalize', default=True)
-    curvatureMaxAngle: FloatProperty (name='Max Curvature', default=100.0)
-    curvatureOutputGamma: FloatProperty (name='Output Gamma', default=1.0)
-    cavitySensitivity: FloatProperty (name='Sensitivity', default=0.75)
+    curvatureMaxAngle: FloatProperty (name='Max Curvature', default=100.0, min=0.0)
+    curvatureOutputGamma: FloatProperty (name='Output Gamma', default=1.0, min=0.0)
+    cavitySensitivity: FloatProperty (name='Sensitivity', default=0.75, min=0.0)
     cavityBias: FloatProperty (name='Bias', default=0.015)
     cavityPixelRadius: IntProperty (name='PixelSampleRadius', default=4, min=0)
-    cavityOutputGamma: FloatProperty (name='Output Gamma', default=1.0)
+    cavityOutputGamma: FloatProperty (name='Output Gamma', default=1.0, min=0.0)
     cavityKernelType: EnumProperty (name='Kernel Type', items=(('ConstantBox', 'Constant Box', ''), ('ConstantDisk', 'Constant Disk', ''), ('LinearBox', 'Linear Box', ''), ('LinearDisk', 'Linear Disk', ''), ('Gaussian', 'Gaussian', '')), default='ConstantDisk')
     textureSpaceAOPixelRadius: IntProperty (name='Pixel Sample Radius', default=10, min=0)
-    textureSpaceAOOutputGamma: FloatProperty (name='Output Gamma', default=1.0)
-    textureSpaceAOSampleCoveragePercentage: FloatProperty (name='Sample Coverage Percentage', default=100.0)
+    textureSpaceAOOutputGamma: FloatProperty (name='Output Gamma', default=1.0, min=0.0)
+    textureSpaceAOSampleCoveragePercentage: FloatProperty (name='Sample Coverage Percentage', default=100.0, min=0.0)
     
     tangentSpace: EnumProperty (
         name='Tangent Space', 
@@ -539,7 +539,7 @@ class GYAZ_HandplaneBridge_BakeSettings (PropertyGroup):
 
 class GYAZ_HandplaneBridge (PropertyGroup):
     projection_groups: CollectionProperty (type=GYAZ_HandplaneBridge_ProjectionGroupItem)
-    active_projection_group: IntProperty ()
+    active_projection_group: IntProperty (min=0)
     output_folder_mode: EnumProperty (name='Output Folder', items=(('RELATIVE_FOLDER', 'RELATIVE', ''),('PATH', 'PATH', '')), default='RELATIVE_FOLDER')
     relative_folder_name: StringProperty (name='Folder', default='bake', update=set_folder_name)
     custom_output_folder: StringProperty (name='', default='', subtype='DIR_PATH', update=absolute_path__custom_output_folder)
@@ -703,7 +703,7 @@ class Op_GYAZ_HandplaneBridge_RemoveProjectionGroup (bpy.types.Operator):
     bl_description = "Remove projection group"
     bl_options = {'REGISTER', 'UNDO'}
     
-    projection_group_index: IntProperty (default=0)
+    projection_group_index: IntProperty (default=0, min=0)
     
     # operator function
     def execute(self, context):
@@ -741,7 +741,7 @@ class Op_GYAZ_HandplaneBridge_MoveProjectionGroup (bpy.types.Operator):
     bl_description = "Move projection group"
     bl_options = {'REGISTER', 'UNDO'}
     
-    index: IntProperty (default=0)
+    index: IntProperty (default=0, min=0)
     up: BoolProperty (default=True)
     
     # operator function
@@ -769,9 +769,9 @@ class Op_GYAZ_HandplaneBridge_AddModelItem (bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
     
     type: EnumProperty ( items= ( ('HIGH_POLY', '', ''), ('LOW_POLY', '', '') ) )
-    projection_group_index: IntProperty (default=0)
+    projection_group_index: IntProperty (default=0, min=0)
     remove: BoolProperty (default=False)
-    model_index: IntProperty (default=0)
+    model_index: IntProperty (default=0, min=0)
     
     # operator function
     def execute(self, context):
@@ -804,8 +804,8 @@ class Op_GYAZ_HandplaneBridge_AssignActiveObject (bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
     
     type: EnumProperty ( items=( ('HIGH_POLY', '', ''), ('LOW_POLY', '', ''), ('CAGE', '', '') ) )
-    projection_group_index: IntProperty (default=0)
-    model_index: IntProperty (default=0)
+    projection_group_index: IntProperty (default=0, min=0)
+    model_index: IntProperty (default=0, min=0)
     
     # operator function
     def execute(self, context):
