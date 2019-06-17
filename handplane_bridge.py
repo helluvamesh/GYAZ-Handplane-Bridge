@@ -424,12 +424,16 @@ class GYAZ_HPB_Thickness (PropertyGroup):
     show_props: BoolProperty (name='Show/hide settings.', default=False)
 
 
+def set_object (self, object):
+    return object.type in ['MESH', 'CURVE', 'META', 'SURFACE', 'FONT']
+
+
 class GYAZ_HandplaneBridge_HighPolyItem (PropertyGroup):
     model: StringProperty (name='', default='')
     overrideMaterial: BoolProperty (name='Override material', default=True)
     material: IntProperty (name='Material ID', default=0, min=0, max=3)
     isFloater: BoolProperty (name='Is Floater', default=False, description='Is Floater?')
-    name: StringProperty (name='', default='', description='High poly mesh')
+    object: PointerProperty (name='', type=bpy.types.Object, description='High poly mesh', poll=set_object)
 
 
 class GYAZ_HandplaneBridge_LowPolyItem (PropertyGroup):
@@ -437,8 +441,8 @@ class GYAZ_HandplaneBridge_LowPolyItem (PropertyGroup):
     cageModel: StringProperty (name='', default='')
     overrideCageOffset: BoolProperty (name='Override Cage Offset', default=False, description='Override Ray Offset')
     autoCageOffset: FloatProperty (name='Cage Offset', default=1.0, min=0.0)
-    name: StringProperty (name='', default='', description='Low poly mesh')
-    cage_name: StringProperty (name='', default='', description='Cage mesh')
+    object: PointerProperty (name='', type=bpy.types.Object, description='Low poly mesh', poll=set_object)
+    cage_object: PointerProperty (name='', type=bpy.types.Object, description='Cage mesh', poll=set_object)
     
       
 class GYAZ_HandplaneBridge_ProjectionGroupItem (PropertyGroup):
@@ -447,7 +451,7 @@ class GYAZ_HandplaneBridge_ProjectionGroupItem (PropertyGroup):
     high_poly: CollectionProperty (type=GYAZ_HandplaneBridge_HighPolyItem)
     low_poly: CollectionProperty (type=GYAZ_HandplaneBridge_LowPolyItem)
     material: IntProperty (default=0, min=0)
-    isolateAO: BoolProperty (name='Isolate AO', default=False)
+    isolateAO: BoolProperty (name='Isolate AO', default=False, description='Projection groups are baked separately except for AO unless Isolate AO is True')
     autoCageOffset: FloatProperty (name='Ray Offset', default=1, min=0.0)
 
 
@@ -687,9 +691,12 @@ class Op_GYAZ_HandplaneBridge_AddProjectionGroup (bpy.types.Operator):
         clear = self.clear  
         scene = bpy.context.scene
         
-        if clear == False:
+        if not clear:
             item = scene.gyaz_hpb.projection_groups.add ()
             item.name += ' ' + str(len(scene.gyaz_hpb.projection_groups))
+            item.high_poly.add ()
+            item.low_poly.add ()
+            scene.gyaz_hpb.active_projection_group = len(scene.gyaz_hpb.projection_groups) - 1
         else:
             item = scene.gyaz_hpb.projection_groups.clear ()
             
@@ -795,42 +802,6 @@ class Op_GYAZ_HandplaneBridge_AddModelItem (bpy.types.Operator):
             
         return {'FINISHED'}
 
-    
-class Op_GYAZ_HandplaneBridge_AssignActiveObject (bpy.types.Operator):
-       
-    bl_idname = "object.gyaz_hpb_assign_active_object"  
-    bl_label = "GYAZ Handplane Bridge: Assign Active Object"
-    bl_description = ""
-    bl_options = {'REGISTER', 'UNDO'}
-    
-    type: EnumProperty ( items=( ('HIGH_POLY', '', ''), ('LOW_POLY', '', ''), ('CAGE', '', '') ) )
-    projection_group_index: IntProperty (default=0, min=0)
-    model_index: IntProperty (default=0, min=0)
-    
-    # operator function
-    def execute(self, context):
-        import bpy
-        if bpy.context.active_object is not None:
-            type = self.type
-            projection_group_index = self.projection_group_index
-            model_index = self.model_index   
-            scene = bpy.context.scene
-            ao = bpy.context.active_object
-            
-            if ao.type in ['MESH', 'CURVE', 'META', 'SURFACE', 'FONT']:
-            
-                if type == 'HIGH_POLY':
-                    scene.gyaz_hpb.projection_groups[projection_group_index].high_poly[model_index].name = ao.name
-                elif type == 'LOW_POLY':
-                    scene.gyaz_hpb.projection_groups[projection_group_index].low_poly[model_index].name = ao.name
-                elif type == 'CAGE':
-                    scene.gyaz_hpb.projection_groups[projection_group_index].low_poly[model_index].cage_name = ao.name
-            
-            else:
-                report (self, 'Object cannot be converted to mesh.', 'WARNING')
-            
-        return {'FINISHED'}
-    
 
 def start_handplane (self, mode):
     
@@ -927,15 +898,15 @@ def start_handplane (self, mode):
             if first_pgroup is not None:
                 first_hp = None
                 for item in first_pgroup.high_poly:
-                    if item.name in scene.objects:
-                        first_hp = scene.objects[item.name]
+                    if item.object is not None:
+                        first_hp = item.object
                         break
                     
                 if first_hp is not None:
                     first_lp = None
                     for item in first_pgroup.low_poly:
-                        if item.name in scene.objects:
-                            first_lp = scene.objects[item.name]
+                        if item.object is not None:
+                            first_lp = item.object
                             break
                         
                     if first_lp is not None:
@@ -968,74 +939,72 @@ def start_handplane (self, mode):
         
         
 		# export func               
-        def export_obj (obj_name, type):
+        def export_obj (obj, type):
             # type options:'HP', 'LP', 'C'
-            if scene.objects.get (obj_name) != None:
-                obj = scene.objects[obj_name]
-                transform_was_cleared = False
-                if (type == 'HP' and scene.gyaz_hpb.clear_transforms_hp) or ((type == 'LP' or type == 'C') and scene.gyaz_hpb.clear_transforms_lp):
-                    transform_was_cleared = True
-                    # save transform info
-                    save__location = obj.location[:]
-                    save__rotation_euler = obj.rotation_euler[:]
-                    save__rotation_quaternion = obj.rotation_quaternion[:]
-                    save__rotation_axis_angle = obj.rotation_axis_angle[:]
-                    save__scale = obj.scale[:]
-                    save__constraints_mute = []
-                    for c in obj.constraints:
-                        save__constraints_mute.append (c.mute)
-                    # clear transforms
-                    clear_transformation (obj)
-                # export path
-                mesh_filepath = export_folder + '/' + obj.name + '.' + mesh_format
-                mesh_filepath = os.path.abspath ( bpy.path.abspath (mesh_filepath) )
-                # export
-                use_tspace = False if type == 'HP' else True
+            transform_was_cleared = False
+            if (type == 'HP' and scene.gyaz_hpb.clear_transforms_hp) or ((type == 'LP' or type == 'C') and scene.gyaz_hpb.clear_transforms_lp):
+                transform_was_cleared = True
+                # save transform info
+                save__location = obj.location[:]
+                save__rotation_euler = obj.rotation_euler[:]
+                save__rotation_quaternion = obj.rotation_quaternion[:]
+                save__rotation_axis_angle = obj.rotation_axis_angle[:]
+                save__scale = obj.scale[:]
+                save__constraints_mute = []
+                for c in obj.constraints:
+                    save__constraints_mute.append (c.mute)
+                # clear transforms
+                clear_transformation (obj)
+            # export path
+            mesh_filepath = export_folder + '/' + obj.name + '.' + mesh_format
+            mesh_filepath = os.path.abspath ( bpy.path.abspath (mesh_filepath) )
+            # export
+            use_tspace = False if type == 'HP' else True
+            
+            # apply modifiers and replace
+            old_mesh = obj.data
+            new_mesh = baked_mesh (obj)
+            obj.data = new_mesh
+            if type != 'LP':
+                uv_maps = new_mesh.uv_layers
+                for uv_map in reversed(uv_maps):
+                    uv_maps.remove (uv_map)
+            
+            # save modifier states
+            mods = obj.modifiers
+            mod_states = [(m.show_viewport, m.show_render) for m in mods]
+            
+            # deactivate mods
+            for m in mods:
+                m.show_viewport = False
+                m.show_render = False
+            
+            # override context
+            ctx = bpy.context.copy ()
+            ctx['selected_objects'] = [obj]
+            
+            bpy.ops.export_scene.fbx (ctx, filepath=mesh_filepath, use_selection=use_selection, use_active_collection=use_active_collection, global_scale=global_scale, apply_unit_scale=apply_unit_scale, apply_scale_options=apply_scale_options, axis_forward=axis_forward, axis_up=axis_up, object_types=object_types, bake_space_transform=bake_space_transform, use_custom_props=use_custom_props, path_mode=path_mode, batch_mode=batch_mode, use_mesh_modifiers=use_mesh_modifiers, use_mesh_modifiers_render=use_mesh_modifiers_render, mesh_smooth_type=mesh_smooth_type, use_mesh_edges=use_mesh_edges, use_tspace=use_tspace, use_armature_deform_only=use_armature_deform_only, add_leaf_bones=add_leaf_bones, primary_bone_axis=primary_bone_axis, secondary_bone_axis=secondary_bone_axis, armature_nodetype=armature_nodetype, bake_anim=bake_anim, bake_anim_use_all_bones=bake_anim_use_all_bones, bake_anim_use_nla_strips=bake_anim_use_nla_strips, bake_anim_use_all_actions=bake_anim_use_all_actions, bake_anim_force_startend_keying=bake_anim_force_startend_keying, bake_anim_step=bake_anim_step, bake_anim_simplify_factor=bake_anim_simplify_factor)
+            
+            # reset mesh and delete the applied mesh
+            obj.data = old_mesh
+            bpy.data.meshes.remove (new_mesh)
+            
+            # reactivate mods
+            for index, m in enumerate (mods):
+                m.show_viewport = mod_states[index][0]
+                m.show_render = mod_states[index][1]
                 
-                # apply modifiers and replace
-                old_mesh = obj.data
-                new_mesh = baked_mesh (obj)
-                obj.data = new_mesh
-                if type != 'LP':
-                    uv_maps = new_mesh.uv_layers
-                    for uv_map in reversed(uv_maps):
-                        uv_maps.remove (uv_map)
-                
-                # save modifier states
-                mods = obj.modifiers
-                mod_states = [(m.show_viewport, m.show_render) for m in mods]
-                
-                # deactivate mods
-                for m in mods:
-                    m.show_viewport = False
-                    m.show_render = False
-                
-                # override context
-                ctx = bpy.context.copy ()
-                ctx['selected_objects'] = [obj]
-                
-                bpy.ops.export_scene.fbx (ctx, filepath=mesh_filepath, use_selection=use_selection, use_active_collection=use_active_collection, global_scale=global_scale, apply_unit_scale=apply_unit_scale, apply_scale_options=apply_scale_options, axis_forward=axis_forward, axis_up=axis_up, object_types=object_types, bake_space_transform=bake_space_transform, use_custom_props=use_custom_props, path_mode=path_mode, batch_mode=batch_mode, use_mesh_modifiers=use_mesh_modifiers, use_mesh_modifiers_render=use_mesh_modifiers_render, mesh_smooth_type=mesh_smooth_type, use_mesh_edges=use_mesh_edges, use_tspace=use_tspace, use_armature_deform_only=use_armature_deform_only, add_leaf_bones=add_leaf_bones, primary_bone_axis=primary_bone_axis, secondary_bone_axis=secondary_bone_axis, armature_nodetype=armature_nodetype, bake_anim=bake_anim, bake_anim_use_all_bones=bake_anim_use_all_bones, bake_anim_use_nla_strips=bake_anim_use_nla_strips, bake_anim_use_all_actions=bake_anim_use_all_actions, bake_anim_force_startend_keying=bake_anim_force_startend_keying, bake_anim_step=bake_anim_step, bake_anim_simplify_factor=bake_anim_simplify_factor)
-                
-                # reset mesh and delete the applied mesh
-                obj.data = old_mesh
-                bpy.data.meshes.remove (new_mesh)
-                
-                # reactivate mods
-                for index, m in enumerate (mods):
-                    m.show_viewport = mod_states[index][0]
-                    m.show_render = mod_states[index][1]
-                    
-                # reset object transform and unmute constraints
-                if transform_was_cleared:
-                    for index, mute in enumerate (save__constraints_mute):
-                        obj.constraints[index].mute = mute
-                    obj.location = save__location
-                    obj.rotation_euler = save__rotation_euler
-                    obj.rotation_quaternion = save__rotation_quaternion
-                    obj.rotation_axis_angle = save__rotation_axis_angle
-                    obj.scale = save__scale
-                
-                return mesh_filepath
+            # reset object transform and unmute constraints
+            if transform_was_cleared:
+                for index, mute in enumerate (save__constraints_mute):
+                    obj.constraints[index].mute = mute
+                obj.location = save__location
+                obj.rotation_euler = save__rotation_euler
+                obj.rotation_quaternion = save__rotation_quaternion
+                obj.rotation_axis_angle = save__rotation_axis_angle
+                obj.scale = save__scale
+            
+            return mesh_filepath
         
         # export mesh and save filepath (for writing path into .HPB file)
         
@@ -1045,25 +1014,25 @@ def start_handplane (self, mode):
             if pgroup.active == True:
             
                 # high poly
-                if scene.gyaz_hpb.export_hp == True:
+                if scene.gyaz_hpb.export_hp:
                     for item in pgroup.high_poly:
                         setattr ( item, 'model', '""' )
-                        if scene.objects.get (item.name) != None:
-                            path = '"' + export_obj (item.name, 'HP') + '"'
+                        if item.object is not None:
+                            path = '"' + export_obj (item.object, 'HP') + '"'
                             setattr ( item, 'model', path )
                             if item.material != 0:
                                 all_materials_0 = False
                 
                 # low poly, cage
-                if scene.gyaz_hpb.export_lp == True:
+                if scene.gyaz_hpb.export_lp:
                     for item in pgroup.low_poly:
                         setattr ( item, 'model', '""')
-                        if scene.objects.get (item.name) != None:
-                            path =  '"' + export_obj (item.name, 'LP') + '"'
+                        if item.object is not None:
+                            path =  '"' + export_obj (item.object, 'LP') + '"'
                             setattr ( item, 'model', path)
                         setattr ( item, 'cageModel', '""')
-                        if scene.objects.get (item.cage_name) != None:
-                            path = '"' + export_obj (item.cage_name, 'C') + '"'
+                        if item.cage_object is not None:
+                            path = '"' + export_obj (item.cage_object, 'C') + '"'
                             setattr ( item, 'cageModel', path )
         
         
@@ -1387,28 +1356,27 @@ def start_handplane (self, mode):
                 else:
                     
                     # check for groups with no high/low poly items
-                    # check for missing and unset objects:
+                    # check for missing objects:
                     groups_with_no_high_poly_item = []
                     groups_with_no_low_poly_item = []
-                    groups_with_unset_objects = []
                     groups_with_missing_objects = []
                     for pgroup_index, pgroup in enumerate (active_pgroups):
-                        high_poly_names = [high_poly_item.name for high_poly_item in pgroup.high_poly]
-                        low_poly_names = [low_poly_item.name for low_poly_item in pgroup.low_poly]
-                        cage_names = [low_poly_item.cage_name for low_poly_item in pgroup.low_poly]
+                        high_poly_objs = [item.object for item in pgroup.high_poly]
+                        low_poly_objs = [item.object for item in pgroup.low_poly]
+                        cage_objs = [item.cage_object for item in pgroup.low_poly]
                         
-                        # get unset objects (cage can be unset, high and low can't)
-                        unset_objects = []
+                        # cage object can be None, hp and lp can't
                         missing_objects = []
-                        for obj_name in high_poly_names + low_poly_names:
-                            if obj_name == '':
-                                unset_objects.append (True)
-                            elif scene.objects.get (obj_name) == None:
-                                missing_objects.append (obj_name)
-                        for obj_name in cage_names:
-                            if obj_name != '':
-                                if scene.objects.get (obj_name) == None:
-                                    missing_objects.append (obj_name)
+                        for obj in high_poly_objs + low_poly_objs:
+                            if obj is None:
+                                missing_objects.append (obj)
+                            elif obj.name not in scene.objects:
+                                missing_objects.append (obj)
+                                
+                        for obj in cage_objs:
+                            if obj is not None:
+                                if obj.name not in scene.objects:
+                                    missing_objects.append (obj)
                                 
                         # result
                         group_info = pgroup.name+'('+str(pgroup_index)+')'
@@ -1416,19 +1384,15 @@ def start_handplane (self, mode):
                             groups_with_no_high_poly_item.append (group_info)
                         if len (pgroup.low_poly) == 0:
                             groups_with_no_low_poly_item.append (group_info)
-                        if len (unset_objects) > 0:
-                            groups_with_unset_objects.append (group_info)
                         if len (missing_objects) > 0:
                             groups_with_missing_objects.append (group_info)
                             
-                    if len(groups_with_no_high_poly_item)>0 or len(groups_with_no_low_poly_item)>0 or len(groups_with_unset_objects)>0 or len(groups_with_missing_objects)>0:
+                    if len(groups_with_no_high_poly_item)>0 or len(groups_with_no_low_poly_item)>0 or len(groups_with_missing_objects)>0:
                         warning_lines = []
                         if len (groups_with_no_high_poly_item) > 0:
                             warning_lines.append ("Groups with no high poly item: "+list_to_visual_list(groups_with_no_high_poly_item))
                         if len (groups_with_no_low_poly_item) > 0:
                             warning_lines.append ("Groups with no low poly item: "+list_to_visual_list(groups_with_no_low_poly_item))
-                        if len (groups_with_unset_objects) > 0:
-                            warning_lines.append ("Groups with unset objects: "+list_to_visual_list(groups_with_unset_objects))
                         if len (groups_with_missing_objects) > 0:
                             warning_lines.append ("Groups with missing objects: "+list_to_visual_list(groups_with_missing_objects))                           
                         
@@ -1446,13 +1410,13 @@ def start_handplane (self, mode):
                         c_objs = []
                         for group in active_pgroups:
                             for item in group.high_poly:
-                                if scene.objects.get (item.name) != None:
-                                    hp_objs.append (item.name)
+                                if item.object is not None:
+                                    hp_objs.append (item.object)
                             for item in group.low_poly:
-                                if scene.objects.get (item.name) != None:
-                                    lp_objs.append (item.name)
-                                if scene.objects.get (item.cage_name) != None:
-                                    c_objs.append (item.cage_name)
+                                if item.object is not None:
+                                    lp_objs.append (item.object)
+                                if item.cage_object is not None:
+                                    c_objs.append (item.cage_object)
                                     
                         # low poly, cage
                         quads_allowed = scene.gyaz_hpb.global_settings.suppressTriangulationWarning
@@ -1462,23 +1426,21 @@ def start_handplane (self, mode):
                         lp_objs_with_mirrored_uvs = []
                         
                         # face check
-                        for obj_name in lp_objs + c_objs:
-                            obj = scene.objects[obj_name]
+                        for obj in lp_objs + c_objs:
                             bm = bmesh.new ()
                             bm.from_object (obj, bpy.context.evaluated_depsgraph_get(), deform=False,  cage=False, face_normals=False)
                             faces = bm.faces
                             bad_polygons = [face for face in faces if len(face.verts)>max_verts_per_face]
                             bad_polygon_count = len (bad_polygons)
                             if bad_polygon_count > 0:
-                                lp_c_objs_with_bad_polygons.append (obj_name)
+                                lp_c_objs_with_bad_polygons.append (obj.name)
                             bm.free ()
                            
-                        for obj_name in lp_objs:
-                            obj = scene.objects[obj_name]
+                        for obj in lp_objs:
                             uv_maps = obj.data.uv_layers
                             if len (uv_maps) < 1:
                                 # no uvs
-                                if obj_name in lp_objs:
+                                if obj in lp_objs:
                                     lp_objs_with_no_uvs.append (obj.name)  
                             else:
                                 # select mirored uvs
@@ -1496,10 +1458,9 @@ def start_handplane (self, mode):
                         # high poly
                         hp_objs_wo_vert_color = []
                         if scene.gyaz_hpb.bake_settings.isEnabled_vertex_color:
-                            for obj_name in hp_objs:
-                                obj = scene.objects[obj_name]
+                            for obj in hp_objs:
                                 if len (obj.data.vertex_colors) == 0:
-                                    hp_objs_wo_vert_color.append (obj_name)
+                                    hp_objs_wo_vert_color.append (obj.name)
                                 
                         
                         if len (lp_c_objs_with_bad_polygons) == 0 and len (lp_objs_with_no_uvs) == 0 and len (hp_objs_wo_vert_color) == 0 and len (lp_objs_with_mirrored_uvs) == 0:
@@ -1649,9 +1610,10 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
             
             row = lay.row ()
             row.template_list ("UI_UL_GYAZ_ProjectionGroupItem", "",  # type and unique id
-                scene.gyaz_hpb, "projection_groups",  # pointer to the CollectionProperty
-                scene.gyaz_hpb, "active_projection_group",  # pointer to the active identifier
-                rows = 1, maxrows = 1) 
+                               scene.gyaz_hpb, "projection_groups",  # pointer to the CollectionProperty
+                               scene.gyaz_hpb, "active_projection_group",  # pointer to the active identifier
+                               rows=4, maxrows=4
+                               ) 
             col = row.column (align=True)
             
             group_index = scene.gyaz_hpb.active_projection_group
@@ -1693,12 +1655,7 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
                 
                 for hp_index, hp_item in enumerate(group_item.high_poly):
                     row = col.row (align=True)
-                    row.prop_search (hp_item, 'name', scene, "objects", icon='SHADING_SOLID')
-                    
-                    operator_props = row.operator (Op_GYAZ_HandplaneBridge_AssignActiveObject.bl_idname, text='', icon='EYEDROPPER')
-                    operator_props.type = 'HIGH_POLY'
-                    operator_props.projection_group_index = group_index
-                    operator_props.model_index = hp_index
+                    row.prop (hp_item, 'object', icon='SHADING_SOLID')
                     
                     row.separator ()
                     
@@ -1725,13 +1682,8 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
                 
                 for lp_index, lp_item in enumerate(group_item.low_poly):
                     row = col.row (align=True)
-                    
-                    row.prop_search (lp_item, 'name', scene, "objects", icon='MESH_ICOSPHERE')
-                    
-                    operator_props = row.operator (Op_GYAZ_HandplaneBridge_AssignActiveObject.bl_idname, text='', icon='EYEDROPPER')
-                    operator_props.type = 'LOW_POLY'
-                    operator_props.projection_group_index = group_index
-                    operator_props.model_index = lp_index
+
+                    row.prop (lp_item, 'object', icon='MESH_ICOSPHERE')
                     
                     row.separator ()
                     
@@ -1743,13 +1695,9 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
                     
                     row = col.row (align=True)
                     row.label (icon='BLANK1')
-                    row.prop_search (lp_item, 'cage_name', scene, "objects", icon='LATTICE_DATA')
                     
-                    operator_props = row.operator (Op_GYAZ_HandplaneBridge_AssignActiveObject.bl_idname, text='', icon='EYEDROPPER')
-                    operator_props.type = 'CAGE'
-                    operator_props.projection_group_index = group_index
-                    operator_props.model_index = lp_index
-                    
+                    row.prop (lp_item, 'cage_object', text='', icon='LATTICE_DATA')
+                   
                     row.prop (lp_item, 'overrideCageOffset', text='', icon='LINE_DATA')             
                     
                     if lp_item.overrideCageOffset == True:
@@ -1888,7 +1836,6 @@ def register():
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_SetAllProjectionGroupsActive)
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_MoveProjectionGroup)
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_AddModelItem)
-    bpy.utils.register_class (Op_GYAZ_HandplaneBridge_AssignActiveObject)
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_GoToHandPlane)
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_BakeWithHandPlane)
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_OpenLastOutput)
@@ -1935,7 +1882,6 @@ def unregister ():
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_SetAllProjectionGroupsActive)
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_MoveProjectionGroup)
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_AddModelItem)
-    bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_AssignActiveObject)
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_GoToHandPlane)
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_BakeWithHandPlane)
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_OpenLastOutput)
