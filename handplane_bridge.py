@@ -152,18 +152,18 @@ class GYAZ_HandplaneBridge_Preferences (AddonPreferences):
     handplane_path: StringProperty (name='Handplane Baker Path', default='', subtype='DIR_PATH', update=absolute_path__hand_plane_path)
     
     #map suffixes
-    ts_normals_suffix: StringProperty (name='Tangent Space Normals', default='_n')
-    os_normals_suffix: StringProperty (name='Object Space Normals', default='_nws')
-    ao_suffix: StringProperty (name='Ambient Occlusion', default='_ao')
-    ao_floaters_suffix: StringProperty (name='Ambient Occlusion (Floaters)', default='_aof')
-    vert_color_suffix: StringProperty (name='Vertex Color', default='_vcol')
+    ts_normals_suffix: StringProperty (name='TS Normals', default='_n')
+    os_normals_suffix: StringProperty (name='OS Normals', default='_nws')
+    ao_suffix: StringProperty (name='AO', default='_ao')
+    ao_floaters_suffix: StringProperty (name='AO (Floaters)', default='_aof')
+    vert_color_suffix: StringProperty (name='Vert Color', default='_vcol')
     mat_psd_suffix: StringProperty (name='Material PSD', default='_mat')
-    mat_id_suffix: StringProperty (name='Material ID', default='_id')
-    curve_suffix: StringProperty (name='Curvature Map', default='_curve')
+    mat_id_suffix: StringProperty (name='Material', default='_id')
+    curve_suffix: StringProperty (name='Curvature', default='_curve')
     vol_gradient_suffix: StringProperty (name='Volumetric Gradient', default='_vg')
-    cavity_suffix: StringProperty (name='Cavity Map', default='_cav')
-    height_suffix: StringProperty (name='Height Map', default='_h')
-    tsao_suffix: StringProperty (name='Texture Space AO', default='_tsao')
+    cavity_suffix: StringProperty (name='Cavity', default='_cav')
+    height_suffix: StringProperty (name='Height', default='_h')
+    tsao_suffix: StringProperty (name='TS AO', default='_tsao')
     thickness_suffix: StringProperty (name='Thickness', default='_thick')
   
     
@@ -279,7 +279,7 @@ class GYAZ_HandplaneBridge_Preferences (AddonPreferences):
                 setattr (scene.gyaz_hpb.output_settings, prop_name, preset_prop_value)            
             
     
-    active_preset_name: EnumProperty (name='Presets', items=get_preset_name_items, default=None, update=load_preset)
+    active_preset_name: EnumProperty (name='Preset', items=get_preset_name_items, default=None, update=load_preset)
     
     
     
@@ -1428,7 +1428,7 @@ def start_handplane (self, mode):
                         # face check
                         for obj in lp_objs + c_objs:
                             bm = bmesh.new ()
-                            bm.from_object (obj, bpy.context.evaluated_depsgraph_get(), deform=False,  cage=False, face_normals=False)
+                            bm.from_object (obj, bpy.context.evaluated_depsgraph_get(), cage=False, face_normals=False, vertex_normals=False)
                             faces = bm.faces
                             bad_polygons = [face for face in faces if len(face.verts)>max_verts_per_face]
                             bad_polygon_count = len (bad_polygons)
@@ -1574,9 +1574,9 @@ class Op_GYAZ_HandplaneBridge_OpenLastOutput (bpy.types.Operator):
 
 class UI_UL_GYAZ_ProjectionGroupItem (UIList):
     def draw_item (self, context, layout, data, set, icon, active_data, active_propname, index):
-        row = layout.row ()
+        row = layout.row (align=True)
         row.prop (set, 'active', text='')
-        row.prop (set, 'name', text='', emboss=False)
+        row.prop (set, 'name', text='', emboss=False, expand=True)
         
 
 class RENDER_MT_GYAZ_HPB_ProjectionGroup (Menu):
@@ -1591,10 +1591,10 @@ class RENDER_MT_GYAZ_HPB_ProjectionGroup (Menu):
 
 
 class RENDER_PT_GYAZ_HandplaneBridge (Panel):
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = 'render'
-    bl_label = 'Handplane Bridge'    
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_label = 'Handplane Baker'    
+    bl_category = 'Bake'
     
     # add ui elements here
     def draw (self, context):
@@ -1602,7 +1602,7 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
         scene = bpy.context.scene
         prefs = bpy.context.preferences.addons[__package__].preferences        
         lay = self.layout
-        lay.row ().prop (scene.gyaz_hpb, 'menu', expand=True)
+        lay.column ().prop (scene.gyaz_hpb, 'menu', expand=True)
         
         col = lay.column ().scale_y = .5
         
@@ -1639,10 +1639,10 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
                 group_item = scene.gyaz_hpb.projection_groups[group_index]
                 
                 col = col.column ()
-                            
-                row = col.row (align=True)
-                row.prop (group_item, 'autoCageOffset')
-                row.prop (group_item, 'isolateAO', toggle=True)
+                
+                sub_col = col.column (align=True)
+                sub_col.prop (group_item, 'autoCageOffset')
+                sub_col.prop (group_item, 'isolateAO')
                                         
                 col.separator ()
                 row = col.row ()
@@ -1710,8 +1710,10 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
         
         elif scene.gyaz_hpb.menu == 'SETTINGS':
 
-            row = lay.row (align=True)
-            row.prop (prefs, 'active_preset_name')
+            col = lay.column (align=True)
+            col.label (text='Preset:')
+            row = col.row (align=True)
+            row.prop (prefs, 'active_preset_name', text="")
             row.operator (Op_GYAZ_HandplaneBridge_SavePreset.bl_idname, text='', icon='ADD')
             row.operator (Op_GYAZ_HandplaneBridge_RemovePreset.bl_idname, text='', icon='REMOVE')
             
@@ -1720,11 +1722,13 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
             row = col.row (align=True)
             row.prop (scene.gyaz_hpb.output_settings, 'outputWidth', text='')
             row.prop (scene.gyaz_hpb.output_settings, 'outputHeight', text='')
+            row = col.row (align=True)
             row.prop (scene.gyaz_hpb.output_settings, 'texture_format', text='')
             row.prop (scene.gyaz_hpb.output_settings, 'outputSuperSample', text='')
-            row = lay.row ()
-            row.prop (scene.gyaz_hpb.output_settings, 'outputPadding')
-            row.prop (scene.gyaz_hpb.output_settings, 'outputDither')
+            
+            col = lay.column (align=True)
+            col.prop (scene.gyaz_hpb.output_settings, 'outputPadding')
+            col.prop (scene.gyaz_hpb.output_settings, 'outputDither')
             
             col = lay.column (align=True)
             col.label (text='Maps:')
@@ -1770,18 +1774,17 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
                 lay.prop (scene.gyaz_hpb, 'custom_output_folder')
             lay.prop (scene.gyaz_hpb, 'file_name')                               
             
-            row = lay.row ()
-            row.prop (scene.gyaz_hpb, 'clear_transforms_hp')
-            row.prop (scene.gyaz_hpb, 'clear_transforms_lp')
-            row = lay.row ()
-            row.prop (scene.gyaz_hpb, 'export_hp')
-            row.prop (scene.gyaz_hpb, 'export_lp')
-            lay.prop (scene.gyaz_hpb, 'texture_folder_popup')
+            col = lay.column ()
+            col.prop (scene.gyaz_hpb, 'clear_transforms_hp')
+            col.prop (scene.gyaz_hpb, 'clear_transforms_lp')
+            col.prop (scene.gyaz_hpb, 'export_hp')
+            col.prop (scene.gyaz_hpb, 'export_lp')
+            col.prop (scene.gyaz_hpb, 'texture_folder_popup')
             row = lay.row (align=True)
             col = row.column (align=True)
             col.scale_y = 2
             col.operator (Op_GYAZ_HandplaneBridge_GoToHandPlane.bl_idname, text='GO TO HANDPLANE', icon_value=custom_icons['handplane'].icon_id)
-            col.operator (Op_GYAZ_HandplaneBridge_BakeWithHandPlane.bl_idname, text='BAKE WITH HANDPLANE', icon_value=custom_icons['handplane'].icon_id)
+            col.operator (Op_GYAZ_HandplaneBridge_BakeWithHandPlane.bl_idname, text='BAKE', icon_value=custom_icons['handplane'].icon_id)
             col = row.column (align=True)
             col.scale_y = 4
             col.operator (Op_GYAZ_HandplaneBridge_OpenLastOutput.bl_idname, text='', icon='VIEWZOOM').info=False
