@@ -144,10 +144,10 @@ class GYAZ_HandplaneBridge_Preferences (AddonPreferences):
     bl_idname = __package__
     
     def absolute_path__hand_plane_path (self, context):
-        prop = getattr (self, "hand_plane_baker_path")
+        prop = getattr (self, "handplane_path")
         new_path = os.path.abspath ( bpy.path.abspath (prop) )
         if prop.startswith ('//') == True:
-            self.hand_plane_baker_path = new_path
+            self.handplane_path = new_path
     
     handplane_path: StringProperty (name='Handplane Baker Path', default='', subtype='DIR_PATH', update=absolute_path__hand_plane_path)
     
