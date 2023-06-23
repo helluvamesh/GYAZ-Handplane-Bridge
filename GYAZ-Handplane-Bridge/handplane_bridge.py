@@ -152,19 +152,19 @@ class GYAZ_HandplaneBridge_Preferences (AddonPreferences):
     handplane_path: StringProperty (name='Handplane Baker Path', default='', subtype='DIR_PATH', update=absolute_path__hand_plane_path)
     
     #map suffixes
-    ts_normals_suffix: StringProperty (name='TS Normals', default='_n')
-    os_normals_suffix: StringProperty (name='OS Normals', default='_nws')
-    ao_suffix: StringProperty (name='AO', default='_ao')
-    ao_floaters_suffix: StringProperty (name='AO (Floaters)', default='_aof')
-    vert_color_suffix: StringProperty (name='Vert Color', default='_vcol')
-    mat_psd_suffix: StringProperty (name='Material PSD', default='_mat')
-    mat_id_suffix: StringProperty (name='Material', default='_id')
-    curve_suffix: StringProperty (name='Curvature', default='_curve')
-    vol_gradient_suffix: StringProperty (name='Volumetric Gradient', default='_vg')
-    cavity_suffix: StringProperty (name='Cavity', default='_cav')
-    height_suffix: StringProperty (name='Height', default='_h')
-    tsao_suffix: StringProperty (name='TS AO', default='_tsao')
-    thickness_suffix: StringProperty (name='Thickness', default='_thick')
+    ts_normals_suffix: StringProperty (name='TS Normals', default='_N')
+    os_normals_suffix: StringProperty (name='OS Normals', default='_NW')
+    ao_suffix: StringProperty (name='AO', default='_AO')
+    ao_floaters_suffix: StringProperty (name='AO (Floaters)', default='_AOFLOAT')
+    vert_color_suffix: StringProperty (name='Vert Color', default='_VERTCOL')
+    mat_psd_suffix: StringProperty (name='Material PSD', default='_MAT')
+    mat_id_suffix: StringProperty (name='Material', default='_ID')
+    curve_suffix: StringProperty (name='Curvature', default='_CURVE')
+    vol_gradient_suffix: StringProperty (name='Volumetric Gradient', default='_VOLGRAD')
+    cavity_suffix: StringProperty (name='Cavity', default='_CAVITY')
+    height_suffix: StringProperty (name='Height', default='_H')
+    tsao_suffix: StringProperty (name='TS AO', default='_TSAO')
+    thickness_suffix: StringProperty (name='Thickness', default='_THICK')
   
     
     #PRESETS (BakeSettings, OutputSettings, GlobalSettings
