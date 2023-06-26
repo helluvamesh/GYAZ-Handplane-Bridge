@@ -835,7 +835,6 @@ def start_handplane (self, mode):
 
         # get project-file path    
         project_file_path = os.path.join(root_folder, file_name + '.HPB')
-        print (project_file_path)
         # save last written project file
         setattr (scene.gyaz_hpb, 'last_output_path', project_file_path)
 
