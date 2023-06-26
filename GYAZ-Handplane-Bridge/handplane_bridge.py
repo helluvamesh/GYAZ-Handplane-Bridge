@@ -93,11 +93,6 @@ def list_to_visual_list (list):
         line += str(item)
     return line
 
-
-def set_folder_name (self, context):
-    if context.scene.gyaz_hpb.relative_folder_name.replace (" ", "") == "":
-        context.scene.gyaz_hpb.relative_folder_name = "" 
-        
         
 def baked_mesh (object):
     object_eval = object.evaluated_get(bpy.context.evaluated_depsgraph_get())
@@ -119,23 +114,6 @@ def apply_transforms (obj, co):
     mat = m[:3, :3].T # rotates backwards without T
     loc = m[:3, 3]
     return co @ mat + loc
-
-    
-class Op_GYAZ_HPB_OpenFolderInWindowsFileExplorer (bpy.types.Operator):
-       
-    bl_idname = "object.gyaz_hpb_open_folder_in_explorer"  
-    bl_label = "GYAZ_Handplane Bridg: Open Folder in Explorer"
-    bl_description = "Open folder in file explorer"
-    
-    path: StringProperty (default='', options={'SKIP_SAVE'})
-    
-    # operator function
-    def execute(self, context):  
-        scene = bpy.context.scene
-        path = os.path.abspath ( bpy.path.abspath (self.path) )
-        subprocess.Popen ('explorer "'+path+'"')
-          
-        return {'FINISHED'}
 
 
 class GYAZ_HandplaneBridge_Preferences (AddonPreferences):
@@ -455,14 +433,6 @@ class GYAZ_HandplaneBridge_ProjectionGroupItem (PropertyGroup):
     autoCageOffset: FloatProperty (name='Ray Offset', default=1, min=0.0)
 
 
-def absolute_path__custom_output_folder (self, context):
-    scene = bpy.context.scene
-    prop = getattr (scene.gyaz_hpb, "custom_output_folder")
-    new_path = os.path.abspath ( bpy.path.abspath (prop) )
-    if prop.startswith ('//') == True:
-        scene.gyaz_hpb.custom_output_folder = new_path
-
-
 class GYAZ_HandplaneBridge_GlobalSettings (PropertyGroup):
     threadCount: IntProperty (name='Baker Thread Count', default=0, min=0)
     backRayOffsetScale: FloatProperty (name='Back Ray Offset Scale', default=5.0, min=0.0)
@@ -544,9 +514,7 @@ class GYAZ_HandplaneBridge_BakeSettings (PropertyGroup):
 class GYAZ_HandplaneBridge (PropertyGroup):
     projection_groups: CollectionProperty (type=GYAZ_HandplaneBridge_ProjectionGroupItem)
     active_projection_group: IntProperty (min=0)
-    output_folder_mode: EnumProperty (name='Output Folder', items=(('RELATIVE_FOLDER', 'RELATIVE', ''),('PATH', 'PATH', '')), default='RELATIVE_FOLDER')
-    relative_folder_name: StringProperty (name='Folder', default='bake', update=set_folder_name)
-    custom_output_folder: StringProperty (name='', default='', subtype='DIR_PATH', update=absolute_path__custom_output_folder)
+    output_folder: StringProperty (name='', default='//Bake', subtype='DIR_PATH')
     file_name: StringProperty (name='Name', default='')
     last_output_path: StringProperty (name='Last Output', default='')
     clear_transforms_hp: BoolProperty (name='HP to Origo', default=False, description="Clear objects' transformation and mute constraints")
@@ -853,30 +821,27 @@ def start_handplane (self, mode):
         
 
         # get export folder
-        output_folder_mode = scene.gyaz_hpb.output_folder_mode
-        relative_folder_name = scene.gyaz_hpb.relative_folder_name if scene.gyaz_hpb.relative_folder_name.replace (" ", "") != "" else ""
-        custom_output_folder = scene.gyaz_hpb.custom_output_folder
+        output_folder = scene.gyaz_hpb.output_folder
         file_name = scene.gyaz_hpb.file_name
         
-        if output_folder_mode == 'RELATIVE_FOLDER':
-            root_folder = '//' + relative_folder_name + '/' + file_name
-        else:
-            root_folder = custom_output_folder + '/' + file_name
-        
-        # make sure root folder exists
-        root_folder = os.path.abspath ( bpy.path.abspath (root_folder) )
+        if output_folder.startswith ('//'):
+            output_folder = os.path.abspath ( bpy.path.abspath (output_folder) )
+        if not os.path.isdir(output_folder):
+            report (self, "Export folder (Destination) doesn't exist.", "WARNING")
+            return {"CANCELLED"} 
+
+        root_folder = os.path.join(output_folder, file_name) 
         os.makedirs(root_folder, exist_ok=True)
+
         # get project-file path    
-        project_file_path = root_folder + '/' + file_name + '.HPB'
-        project_file_path = os.path.abspath ( bpy.path.abspath (project_file_path) )
+        project_file_path = os.path.join(root_folder, file_name + '.HPB')
         print (project_file_path)
         # save last written project file
         setattr (scene.gyaz_hpb, 'last_output_path', project_file_path)
 
    
         # export folder
-        export_folder = root_folder + '\meshes'
-        export_folder = os.path.abspath ( bpy.path.abspath (export_folder) )
+        export_folder = os.path.join(root_folder, 'Meshes')
         # create export folder
         os.makedirs(export_folder, exist_ok=True)
         
@@ -956,8 +921,7 @@ def start_handplane (self, mode):
                 # clear transforms
                 clear_transformation (obj)
             # export path
-            mesh_filepath = export_folder + '/' + obj.name + '.' + mesh_format
-            mesh_filepath = os.path.abspath ( bpy.path.abspath (mesh_filepath) )
+            mesh_filepath = os.path.join(export_folder, obj.name + '.' + mesh_format)
             # export
             use_tspace = False if type == 'HP' else True
             
@@ -1053,7 +1017,7 @@ def start_handplane (self, mode):
             bit_depth = 16
         
         
-        path = os.path.abspath ( bpy.path.abspath (root_folder + '/textures') )
+        path = os.path.join(root_folder, 'Textures')
         os.makedirs(path, exist_ok=True)     
         # set output props
         setattr (scene.gyaz_hpb.output_settings, 'outputFolder', '"' + path + '"')
@@ -1308,7 +1272,7 @@ def start_handplane (self, mode):
             handplane_user = os.path.abspath ( bpy.path.abspath (handplane_path+"handplane.exe") )
             subprocess.Popen (handplane_user)
             # open explorer and select handplane file 
-            subprocess.Popen (r'explorer /select,' + project_file_path)
+            subprocess.Popen (r'explorer /select,' + os.path.abspath ( bpy.path.abspath (project_file_path) ))
             
         elif mode == 'BAKE':
             # bake with handplane
@@ -1316,8 +1280,8 @@ def start_handplane (self, mode):
             subprocess.run (handplane_cmd + ' /project ' + project_file_path)
             # open explorer at baked textures
             if scene.gyaz_hpb.texture_folder_popup:
-                textures_folder = os.path.abspath ( bpy.path.abspath (root_folder + '/textures') )
-                subprocess.Popen('explorer ' + textures_folder)
+                textures_folder = os.path.join(root_folder, 'Textures')
+                subprocess.Popen('explorer ' + os.path.abspath ( bpy.path.abspath (textures_folder) ))
                         
     ##############################################
     # SAFETY CHECKS
@@ -1762,16 +1726,8 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
                        
         elif scene.gyaz_hpb.menu == 'EXPORT':
             
-            col = lay.column (align=True)
-            col.label (text='Destination:')
-            row = col.row (align=True)
-            row.prop(scene.gyaz_hpb, 'output_folder_mode', expand=True)
-            path = '//' + scene.gyaz_hpb.relative_folder_name if scene.gyaz_hpb.output_folder_mode == 'RELATIVE_FOLDER' else scene.gyaz_hpb.custom_output_folder
-            row.operator (Op_GYAZ_HPB_OpenFolderInWindowsFileExplorer.bl_idname, text='', icon='VIEWZOOM').path=path
-            if scene.gyaz_hpb.output_folder_mode == 'RELATIVE_FOLDER':
-                lay.prop (scene.gyaz_hpb, 'relative_folder_name')
-            else:
-                lay.prop (scene.gyaz_hpb, 'custom_output_folder')
+            lay.label (text='Destination:')
+            lay.prop (scene.gyaz_hpb, 'output_folder')
             lay.prop (scene.gyaz_hpb, 'file_name')                               
             
             col = lay.column ()
@@ -1842,7 +1798,6 @@ def register():
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_GoToHandPlane)
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_BakeWithHandPlane)
     bpy.utils.register_class (Op_GYAZ_HandplaneBridge_OpenLastOutput)
-    bpy.utils.register_class (Op_GYAZ_HPB_OpenFolderInWindowsFileExplorer)
     
     bpy.utils.register_class (UI_UL_GYAZ_ProjectionGroupItem)
     bpy.utils.register_class (RENDER_MT_GYAZ_HPB_ProjectionGroup)
@@ -1888,7 +1843,6 @@ def unregister ():
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_GoToHandPlane)
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_BakeWithHandPlane)
     bpy.utils.unregister_class (Op_GYAZ_HandplaneBridge_OpenLastOutput)
-    bpy.utils.unregister_class (Op_GYAZ_HPB_OpenFolderInWindowsFileExplorer)
     
     bpy.utils.unregister_class (RENDER_PT_GYAZ_HandplaneBridge)
     bpy.utils.unregister_class (UI_UL_GYAZ_ProjectionGroupItem)
