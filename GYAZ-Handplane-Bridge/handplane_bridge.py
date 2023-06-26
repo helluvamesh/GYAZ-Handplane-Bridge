@@ -514,14 +514,13 @@ class GYAZ_HandplaneBridge_BakeSettings (PropertyGroup):
 class GYAZ_HandplaneBridge (PropertyGroup):
     projection_groups: CollectionProperty (type=GYAZ_HandplaneBridge_ProjectionGroupItem)
     active_projection_group: IntProperty (min=0)
-    output_folder: StringProperty (name='', default='//Bake', subtype='DIR_PATH')
+    output_folder: StringProperty (name='', default='', subtype='DIR_PATH')
     file_name: StringProperty (name='Name', default='')
     last_output_path: StringProperty (name='Last Output', default='')
     clear_transforms_hp: BoolProperty (name='HP to Origo', default=False, description="Clear objects' transformation and mute constraints")
     clear_transforms_lp: BoolProperty (name='LP to Origo', default=False, description="Clear objects' transformation and mute constraints")
     export_hp: BoolProperty (name='Update HP', default=True, description="Export high poly object(s)")
     export_lp: BoolProperty (name='Update LP', default=True, description="Export low poly and cage object(s)")
-    texture_folder_popup: BoolProperty (name='Open Texture Folder', default=True, description="Open the folder with the baked textures when done")
     global_settings: PointerProperty (type=GYAZ_HandplaneBridge_GlobalSettings)
     output_settings: PointerProperty (type=GYAZ_HandplaneBridge_OutputSettings)
     menu: EnumProperty (name='Menu', items=(('GROUPS', 'GROUPS', ''), ('SETTINGS', 'SETTINGS', ''), ('EXPORT', 'EXPORT', '')), default='GROUPS')
@@ -836,7 +835,7 @@ def start_handplane (self, mode):
         # get project-file path    
         project_file_path = os.path.join(root_folder, file_name + '.HPB')
         # save last written project file
-        setattr (scene.gyaz_hpb, 'last_output_path', project_file_path)
+        scene.gyaz_hpb.last_output_path = project_file_path
 
    
         # export folder
@@ -1277,10 +1276,6 @@ def start_handplane (self, mode):
             # bake with handplane
             handplane_cmd = os.path.abspath ( bpy.path.abspath (handplane_path+"handplaneCmd.exe") )
             subprocess.run (handplane_cmd + ' /project ' + project_file_path)
-            # open explorer at baked textures
-            if scene.gyaz_hpb.texture_folder_popup:
-                textures_folder = os.path.join(root_folder, 'Textures')
-                subprocess.Popen('explorer ' + os.path.abspath ( bpy.path.abspath (textures_folder) ))
                         
     ##############################################
     # SAFETY CHECKS
@@ -1737,7 +1732,6 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
             col.prop (scene.gyaz_hpb, 'clear_transforms_lp')
             col.prop (scene.gyaz_hpb, 'export_hp')
             col.prop (scene.gyaz_hpb, 'export_lp')
-            col.prop (scene.gyaz_hpb, 'texture_folder_popup')
             row = lay.row (align=True)
             col = row.column (align=True)
             col.scale_y = 2
