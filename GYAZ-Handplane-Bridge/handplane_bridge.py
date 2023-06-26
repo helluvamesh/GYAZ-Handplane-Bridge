@@ -1725,9 +1725,12 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
                        
         elif scene.gyaz_hpb.menu == 'EXPORT':
             
-            lay.label (text='Destination:')
-            lay.prop (scene.gyaz_hpb, 'output_folder')
-            lay.prop (scene.gyaz_hpb, 'file_name')                               
+            col = lay.column (align=True)
+            col.label (text='Destination:')
+            col.prop (scene.gyaz_hpb, 'output_folder')
+            col = lay.column (align=True)
+            col.label (text='Name:')
+            col.prop (scene.gyaz_hpb, 'file_name', text="")                               
             
             col = lay.column ()
             col.prop (scene.gyaz_hpb, 'clear_transforms_hp')
