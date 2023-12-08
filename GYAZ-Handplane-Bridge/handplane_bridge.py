@@ -941,11 +941,39 @@ def start_handplane (self, mode):
                 m.show_viewport = False
                 m.show_render = False
             
-            # override context
-            ctx = bpy.context.copy ()
-            ctx['selected_objects'] = [obj]
-            
-            bpy.ops.export_scene.fbx (ctx, filepath=mesh_filepath, use_selection=use_selection, use_active_collection=use_active_collection, global_scale=global_scale, apply_unit_scale=apply_unit_scale, apply_scale_options=apply_scale_options, axis_forward=axis_forward, axis_up=axis_up, object_types=object_types, bake_space_transform=bake_space_transform, use_custom_props=use_custom_props, path_mode=path_mode, batch_mode=batch_mode, use_mesh_modifiers=use_mesh_modifiers, use_mesh_modifiers_render=use_mesh_modifiers_render, mesh_smooth_type=mesh_smooth_type, use_mesh_edges=use_mesh_edges, use_tspace=use_tspace, use_armature_deform_only=use_armature_deform_only, add_leaf_bones=add_leaf_bones, primary_bone_axis=primary_bone_axis, secondary_bone_axis=secondary_bone_axis, armature_nodetype=armature_nodetype, bake_anim=bake_anim, bake_anim_use_all_bones=bake_anim_use_all_bones, bake_anim_use_nla_strips=bake_anim_use_nla_strips, bake_anim_use_all_actions=bake_anim_use_all_actions, bake_anim_force_startend_keying=bake_anim_force_startend_keying, bake_anim_step=bake_anim_step, bake_anim_simplify_factor=bake_anim_simplify_factor)
+            with bpy.context.temp_override(selected_objects=[obj]):
+                bpy.ops.export_scene.fbx (
+                    filepath=mesh_filepath, 
+                    use_selection=use_selection,
+                    use_active_collection=use_active_collection, 
+                    global_scale=global_scale, 
+                    apply_unit_scale=apply_unit_scale, 
+                    apply_scale_options=apply_scale_options, 
+                    axis_forward=axis_forward, 
+                    axis_up=axis_up, 
+                    object_types=object_types, 
+                    bake_space_transform=bake_space_transform, 
+                    use_custom_props=use_custom_props, 
+                    path_mode=path_mode, 
+                    batch_mode=batch_mode, 
+                    use_mesh_modifiers=use_mesh_modifiers, 
+                    use_mesh_modifiers_render=use_mesh_modifiers_render, 
+                    mesh_smooth_type=mesh_smooth_type, 
+                    use_mesh_edges=use_mesh_edges, 
+                    use_tspace=use_tspace, 
+                    use_armature_deform_only=use_armature_deform_only, 
+                    add_leaf_bones=add_leaf_bones, 
+                    primary_bone_axis=primary_bone_axis, 
+                    secondary_bone_axis=secondary_bone_axis, 
+                    armature_nodetype=armature_nodetype, 
+                    bake_anim=bake_anim, 
+                    bake_anim_use_all_bones=bake_anim_use_all_bones, 
+                    bake_anim_use_nla_strips=bake_anim_use_nla_strips, 
+                    bake_anim_use_all_actions=bake_anim_use_all_actions, 
+                    bake_anim_force_startend_keying=bake_anim_force_startend_keying, 
+                    bake_anim_step=bake_anim_step, 
+                    bake_anim_simplify_factor=bake_anim_simplify_factor
+                    )
             
             # reset mesh and delete the applied mesh
             obj.data = old_mesh
@@ -1417,7 +1445,7 @@ def start_handplane (self, mode):
                         hp_objs_wo_vert_color = []
                         if scene.gyaz_hpb.bake_settings.isEnabled_vertex_color:
                             for obj in hp_objs:
-                                if len (obj.data.vertex_colors) == 0:
+                                if len (obj.data.color_attributes) == 0:
                                     hp_objs_wo_vert_color.append (obj.name)
                                 
                         
