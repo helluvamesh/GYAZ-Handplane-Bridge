@@ -838,8 +838,7 @@ def start_handplane (self, mode):
         project_file_path = os.path.join(temp_folder, file_name + ".HPB")
         scene.gyaz_hpb.last_output_path = project_file_path
 
-        export_folder = os.path.join(temp_folder, "Meshes")
-        os.makedirs(export_folder, exist_ok=True)
+        export_folder = temp_folder
         
         #_______________________________________________________________
         
@@ -1536,19 +1535,12 @@ class Op_GYAZ_HandplaneBridge_OpenLastOutput (bpy.types.Operator):
     bl_label = "GYAZ Handplane Bridge: Open Last Output"
     bl_description = ""
     
-    info: BoolProperty (default=False)
-    
     # operator function
     def execute(self, context):
-        info = self.info
         scene = bpy.context.scene
-        last_output = scene.gyaz_hpb.last_output_path
-        last_output = os.path.abspath ( bpy.path.abspath (last_output) )
-        
-        if info == False:
-            subprocess.Popen (r'explorer /select,' + last_output)
-        else:
-            popup (lines=[last_output], icon='INFO', title='Last export:')
+        output_dir = os.path.abspath ( bpy.path.abspath (scene.gyaz_hpb.output_folder) )
+
+        subprocess.Popen (r'explorer ' + output_dir)
 
         return {'FINISHED'}
     
@@ -1762,7 +1754,7 @@ class RENDER_PT_GYAZ_HandplaneBridge (Panel):
             col.operator (Op_GYAZ_HandplaneBridge_BakeWithHandPlane.bl_idname, text='BAKE', icon_value=custom_icons['handplane'].icon_id)
             col = row.column (align=True)
             col.scale_y = 4
-            col.operator (Op_GYAZ_HandplaneBridge_OpenLastOutput.bl_idname, text='', icon='VIEWZOOM').info=False
+            col.operator (Op_GYAZ_HandplaneBridge_OpenLastOutput.bl_idname, text='', icon='VIEWZOOM')
 
 
 #######################################################
