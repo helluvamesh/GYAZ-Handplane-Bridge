@@ -827,22 +827,19 @@ def start_handplane (self, mode):
             output_folder = os.path.abspath ( bpy.path.abspath (output_folder) )
         if not os.path.isdir(output_folder):
             report (self, "Export folder (Destination) doesn't exist.", "WARNING")
-            return {"CANCELLED"} 
+            return {"CANCELLED"}
+        
+        temp_folder = os.path.join(output_folder, "Temp")
+        os.makedirs(temp_folder, exist_ok=True)
 
-        root_folder = os.path.join(output_folder, file_name) 
-        os.makedirs(root_folder, exist_ok=True)
+        temp_folder = os.path.join(temp_folder, file_name)
+        os.makedirs(temp_folder, exist_ok=True)
 
-        # get project-file path    
-        project_file_path = os.path.join(root_folder, file_name + '.HPB')
-        # save last written project file
+        project_file_path = os.path.join(temp_folder, file_name + ".HPB")
         scene.gyaz_hpb.last_output_path = project_file_path
 
-   
-        # export folder
-        export_folder = os.path.join(root_folder, 'Meshes')
-        # create export folder
+        export_folder = os.path.join(temp_folder, "Meshes")
         os.makedirs(export_folder, exist_ok=True)
-        
         
         #_______________________________________________________________
         
@@ -1043,10 +1040,8 @@ def start_handplane (self, mode):
             bit_depth = 16
         
         
-        path = os.path.join(root_folder, 'Textures')
-        os.makedirs(path, exist_ok=True)     
         # set output props
-        setattr (scene.gyaz_hpb.output_settings, 'outputFolder', '"' + path + '"')
+        setattr (scene.gyaz_hpb.output_settings, 'outputFolder', '"' + output_folder + '"')
         setattr (scene.gyaz_hpb.output_settings, 'outputFilename', scene.gyaz_hpb.file_name)
         setattr (scene.gyaz_hpb.output_settings, 'outputExtension', texture_format)
         setattr (scene.gyaz_hpb.output_settings, 'outputBitDepth', bit_depth)
