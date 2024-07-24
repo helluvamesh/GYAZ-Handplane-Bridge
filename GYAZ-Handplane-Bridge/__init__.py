@@ -23,8 +23,8 @@
 bl_info = {   
  "name": "GYAZ Handplane Baker Bridge",   
  "author": "helluvamesh",   
- "version": (4, 0, 1),   
- "blender": (4, 0, 1),   
+ "version": (4, 2, 0),   
+ "blender": (4, 2, 0),   
  "location": "Properties>Rener>Handplane Bridge",   
  "description": "Bridge between Blender and Handplane Baker.",
  "warning": "",   
